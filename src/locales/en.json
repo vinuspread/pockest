@@ -1,0 +1,87 @@
+{
+  "welcome": {
+    "title": "Welcome to Pockest!",
+    "subtitle": "Save and manage your favorite products while shopping",
+    "step1_title": "Pin Extension",
+    "step1_desc": "Click the puzzle icon (🧩) at the top of your browser to pin Pockest. It'll be easy to find!",
+    "step2_title": "Open Sidebar",
+    "step2_desc": "While shopping, click the Pockest icon at the top and a sidebar will open on the right.",
+    "step3_title": "Save Products",
+    "step3_desc": "Add products you like to your pocket. Compare them all at a glance later!",
+    "tips_title": "💡 Good to know!",
+    "tip1": "✨ Automatically recognizes product info",
+    "tip2": "📁 Organize products by folders",
+    "tip3": "🔔 View today's saved items in the Today tab",
+    "start_btn": "Get Started",
+    "start_hint": "Sign in to start using now"
+  },
+  "auth": {
+    "login_title": "Sign in to get started",
+    "signup_title": "Create a new account",
+    "email_placeholder": "Email",
+    "password_placeholder": "Password",
+    "login_btn": "Sign In",
+    "signup_btn": "Sign Up",
+    "processing": "Processing...",
+    "signup_link": "Don't have an account? Sign Up",
+    "login_link": "Already have an account? Sign In"
+  },
+  "popup": {
+    "select_pocket": "Select a pocket to save",
+    "search_pocket": "Search pockets",
+    "tab_pocket": "Pocket",
+    "tab_today": "Today",
+    "no_search_results": "No search results",
+    "no_folders": "No folders",
+    "no_today_items": "No items saved today",
+    "create_pocket": "Create Pocket",
+    "new_pocket_name": "New folder name",
+    "save_btn": "Save",
+    "saved_to": "Saved to ",
+    "undo": "Undo",
+    "see_other_products": "Check out other products.",
+    "fetching_product": "Fetching product info...",
+    "fetch_failed": "Failed to fetch product info.",
+    "retry": "Retry",
+    "edit": "edit",
+    "loading_data": "Loading data...",
+    "item_count": "{{count}} items"
+  },
+  "dashboard": {
+    "all_items": "All Items",
+    "today_saved": "Today",
+    "favorites": "Favorites",
+    "trash": "Trash",
+    "total_items": "{{count}} items total",
+    "no_items": "No saved items",
+    "visit": "Visit"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "success": "Success!",
+    "confirm": "Confirm",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "toast": {
+    "item_saved": "Item saved! 🎉",
+    "save_failed": "Failed to save.",
+    "pocket_created": "Folder created!",
+    "login_required": "Please sign in.",
+    "fetch_product_first": "Please fetch product info first."
+  },
+  "error": {
+    "page_communication": "Cannot communicate with the page. Please refresh and try again.",
+    "not_extension": "Not in extension environment.",
+    "restricted_page": "Cannot fetch product info from this page.",
+    "no_tab_info": "Cannot get tab info.",
+    "product_not_found": "Product info not found."
+  }
+}
+

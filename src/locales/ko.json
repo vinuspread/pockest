@@ -1,0 +1,87 @@
+{
+  "welcome": {
+    "title": "Pockest 설치를 환영합니다!",
+    "subtitle": "쇼핑할 때 마음에 드는 상품을 간편하게 저장하고 관리하세요",
+    "step1_title": "고정핀 클릭",
+    "step1_desc": "브라우저 상단의 퍼즐 조각 아이콘(🧩)을 눌러 Pockest를 고정하세요. 쉽게 찾을 수 있어요!",
+    "step2_title": "사이드바 열기",
+    "step2_desc": "쇼핑할 때 상단의 Pockest 아이콘을 누르면 오른쪽에 사이드바가 열립니다.",
+    "step3_title": "상품 담기",
+    "step3_desc": "마음에 드는 상품을 포켓에 쏙 담으세요. 나중에 한눈에 비교할 수 있어요!",
+    "tips_title": "💡 알아두세요!",
+    "tip1": "✨ 자동으로 상품 정보를 인식합니다",
+    "tip2": "📁 폴더별로 상품을 정리할 수 있습니다",
+    "tip3": "🔔 Today 탭에서 오늘 저장한 상품만 모아볼 수 있습니다",
+    "start_btn": "Pockest 시작하기",
+    "start_hint": "로그인하여 지금 바로 사용해보세요"
+  },
+  "auth": {
+    "login_title": "로그인하여 시작하세요",
+    "signup_title": "새 계정을 만드세요",
+    "email_placeholder": "이메일",
+    "password_placeholder": "비밀번호",
+    "login_btn": "로그인",
+    "signup_btn": "회원가입",
+    "processing": "처리 중...",
+    "signup_link": "계정이 없으신가요? 회원가입",
+    "login_link": "이미 계정이 있으신가요? 로그인"
+  },
+  "popup": {
+    "select_pocket": "저장할 포켓을 선택하세요",
+    "search_pocket": "포켓 검색",
+    "tab_pocket": "Pocket",
+    "tab_today": "Today",
+    "no_search_results": "검색 결과가 없습니다",
+    "no_folders": "폴더가 없습니다",
+    "no_today_items": "오늘 저장한 상품이 없습니다",
+    "create_pocket": "포켓 만들기",
+    "new_pocket_name": "새 폴더 이름",
+    "save_btn": "담기",
+    "saved_to": "에 담았습니다!",
+    "undo": "되돌리기",
+    "see_other_products": "다른 상품을 보러 가세요.",
+    "fetching_product": "상품 정보를 가져오는 중...",
+    "fetch_failed": "상품 정보를 가져오지 못했습니다.",
+    "retry": "재시도",
+    "edit": "edit",
+    "loading_data": "데이터를 불러오는 중...",
+    "item_count": "{{count}}개"
+  },
+  "dashboard": {
+    "all_items": "모든 상품",
+    "today_saved": "오늘 저장",
+    "favorites": "즐겨찾기",
+    "trash": "휴지통",
+    "total_items": "총 {{count}}개의 상품",
+    "no_items": "저장된 상품이 없습니다",
+    "visit": "방문"
+  },
+  "common": {
+    "save": "저장",
+    "cancel": "취소",
+    "delete": "삭제",
+    "edit": "편집",
+    "close": "닫기",
+    "loading": "로딩 중...",
+    "error": "오류가 발생했습니다",
+    "success": "성공!",
+    "confirm": "확인",
+    "settings": "설정",
+    "logout": "로그아웃"
+  },
+  "toast": {
+    "item_saved": "상품이 저장되었습니다! 🎉",
+    "save_failed": "저장에 실패했습니다.",
+    "pocket_created": "폴더가 생성되었습니다!",
+    "login_required": "로그인이 필요합니다.",
+    "fetch_product_first": "상품 정보를 먼저 가져와주세요."
+  },
+  "error": {
+    "page_communication": "페이지와 통신할 수 없습니다. 페이지를 새로고침 후 다시 시도해주세요.",
+    "not_extension": "Extension 환경이 아닙니다.",
+    "restricted_page": "이 페이지에서는 상품 정보를 가져올 수 없습니다.",
+    "no_tab_info": "탭 정보를 가져올 수 없습니다.",
+    "product_not_found": "상품 정보를 찾을 수 없습니다."
+  }
+}
+

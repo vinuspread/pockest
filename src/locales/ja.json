@@ -1,0 +1,87 @@
+{
+  "welcome": {
+    "title": "Pockestへようこそ！",
+    "subtitle": "お気に入りの商品を簡単に保存・管理しましょう",
+    "step1_title": "ピン留め",
+    "step1_desc": "ブラウザ上部のパズルアイコン(🧩)をクリックしてPockestをピン留めしてください。簡単に見つけられます！",
+    "step2_title": "サイドバーを開く",
+    "step2_desc": "ショッピング中に上部のPockestアイコンをクリックすると、右側にサイドバーが開きます。",
+    "step3_title": "商品を保存",
+    "step3_desc": "気に入った商品をポケットに入れましょう。後で一覧で比較できます！",
+    "tips_title": "💡 お知らせ！",
+    "tip1": "✨ 商品情報を自動認識します",
+    "tip2": "📁 フォルダ別に商品を整理できます",
+    "tip3": "🔔 Todayタブで今日保存した商品だけを見れます",
+    "start_btn": "Pockestを始める",
+    "start_hint": "ログインして今すぐ使ってみましょう"
+  },
+  "auth": {
+    "login_title": "ログインして始めましょう",
+    "signup_title": "新しいアカウントを作成",
+    "email_placeholder": "メールアドレス",
+    "password_placeholder": "パスワード",
+    "login_btn": "ログイン",
+    "signup_btn": "新規登録",
+    "processing": "処理中...",
+    "signup_link": "アカウントをお持ちでない方は登録",
+    "login_link": "すでにアカウントをお持ちの方はログイン"
+  },
+  "popup": {
+    "select_pocket": "保存先のポケットを選択",
+    "search_pocket": "ポケット検索",
+    "tab_pocket": "Pocket",
+    "tab_today": "Today",
+    "no_search_results": "検索結果がありません",
+    "no_folders": "フォルダがありません",
+    "no_today_items": "今日保存した商品はありません",
+    "create_pocket": "ポケット作成",
+    "new_pocket_name": "新しいフォルダ名",
+    "save_btn": "保存",
+    "saved_to": "に保存しました！",
+    "undo": "元に戻す",
+    "see_other_products": "他の商品を見に行きましょう。",
+    "fetching_product": "商品情報を取得中...",
+    "fetch_failed": "商品情報を取得できませんでした。",
+    "retry": "再試行",
+    "edit": "編集",
+    "loading_data": "データを読み込み中...",
+    "item_count": "{{count}}件"
+  },
+  "dashboard": {
+    "all_items": "すべての商品",
+    "today_saved": "今日の保存",
+    "favorites": "お気に入り",
+    "trash": "ゴミ箱",
+    "total_items": "合計{{count}}件の商品",
+    "no_items": "保存された商品はありません",
+    "visit": "訪問"
+  },
+  "common": {
+    "save": "保存",
+    "cancel": "キャンセル",
+    "delete": "削除",
+    "edit": "編集",
+    "close": "閉じる",
+    "loading": "読み込み中...",
+    "error": "エラーが発生しました",
+    "success": "成功！",
+    "confirm": "確認",
+    "settings": "設定",
+    "logout": "ログアウト"
+  },
+  "toast": {
+    "item_saved": "商品を保存しました！🎉",
+    "save_failed": "保存に失敗しました。",
+    "pocket_created": "フォルダを作成しました！",
+    "login_required": "ログインが必要です。",
+    "fetch_product_first": "先に商品情報を取得してください。"
+  },
+  "error": {
+    "page_communication": "ページと通信できません。ページを更新して再試行してください。",
+    "not_extension": "拡張機能環境ではありません。",
+    "restricted_page": "このページでは商品情報を取得できません。",
+    "no_tab_info": "タブ情報を取得できません。",
+    "product_not_found": "商品情報が見つかりません。"
+  }
+}
+

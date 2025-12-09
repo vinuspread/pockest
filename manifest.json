@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "Pockest",
+  "version": "1.0.0",
+  "description": "쇼핑 위시리스트 & 가격 비교",
+  "icons": {
+    "16": "assets/icons/icon-16.png",
+    "32": "assets/icons/icon-32.png",
+    "48": "assets/icons/icon-48.png",
+    "128": "assets/icons/icon-128.png"
+  },
+  "action": {
+    "default_title": "Pockest Open SidePanel"
+  },
+  "side_panel": {
+    "default_path": "src/pages/popup/index.html"
+  },
+  "background": {
+    "service_worker": "src/background/index.ts",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/pages/content/index.tsx"],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": [
+    "sidePanel",
+    "storage",
+    "tabs",
+    "scripting",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["assets/*", "src/pages/popup/index.html"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

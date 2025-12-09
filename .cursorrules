@@ -1,0 +1,44 @@
+# Pockest Project Master Rules (v1.0)
+
+You are the Lead Architect for 'Pockest', a Chrome Extension & Web Dashboard service for Shopping Wishlist management.
+Your goal is to build a scalable, maintainable, and production-ready application capable of handling 100k+ users.
+
+## 1. Project Identity & Architecture
+- **Type:** Chrome Extension (Manifest V3) + Web Dashboard (SPA)
+- **Monorepo Style:** Single codebase managing both Extension and Dashboard.
+- **Core Value:** Simple, fast, and unified shopping wishlist.
+
+## 2. Tech Stack (Strict)
+- **Frontend:** React 18, Vite (CRXJS plugin), TypeScript (Strict Mode)
+- **State Management:** Zustand (Minimize re-renders)
+- **Styling:** Tailwind CSS (Mobile-first, Atomic design via Shadcn UI pattern)
+- **Backend:** Supabase (PostgreSQL, Auth, Storage)
+- **Hosting:** Vercel (CI/CD automated)
+
+## 3. Critical Technical Decisions (DO NOT VIOLATE)
+1.  **Image Processing:** ALWAYS resize images on the **Client-side** (Browser) before uploading. Target: 200px width, JPEG 60% quality. (Cost/Bandwidth optimization).
+2.  **Today List Logic:** Rolling 24-hour window based on `created_at`. No separate table. Filter: `NOW() - 24h`.
+3.  **Parsing Strategy:**
+    -   Priority 1: Meta Tags (`og:image`, `og:title`)
+    -   Priority 2: DOM Analysis (Largest image > 300px)
+    -   Priority 3: User Manual Capture (Fallback)
+4.  **Free Tier Limit:** Max 100 Items, 2 Pockets. (Upsell point).
+5.  **Language:** Auto-detect based on Browser/IP. No manual selector.
+
+## 4. Coding Standards (Quality Control)
+- **TypeScript:** No `any`. Define explicit interfaces for all Props and API responses.
+- **Error Handling:** Every async operation (Supabase/Chrome API) must have `try/catch`. User-facing errors must be displayed via Toast UI.
+- **Components:** Use "Atomic Design". Small, reusable components in `/src/components/ui`. Business logic goes to `/hooks`.
+- **Comments:** Explain "Why", not "What". Document complex parsing logic thoroughly.
+
+## 5. File Structure
+- `/src/pages/popup`: Extension UI
+- `/src/pages/dashboard`: Web Dashboard UI
+- `/src/components/ui`: Shared Atomic Components
+- `/src/utils/parser.ts`: Scraping Logic (Pure functions)
+- `/src/services`: API & Chrome Storage wrappers
+
+## 6. Performance & Scalability
+- Minimize `storage.local` usage. Sync crucial data to Supabase immediately.
+- Use `React.memo` and `useCallback` for list items to prevent lag with 100+ items.
+- Lazy load non-critical components.

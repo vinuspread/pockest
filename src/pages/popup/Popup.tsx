@@ -1,0 +1,952 @@
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { 
+  ShoppingBag, X, Settings, Search, Edit3, Check, Folder, RefreshCw, AlertCircle,
+  ChevronLeft, ChevronRight, Undo2, CheckCircle
+} from 'lucide-react';
+import { useAuth, usePockets, useItems } from '@/hooks';
+import { useAuthStore } from '@/store/useAuthStore';
+import { usePocketStore } from '@/store/usePocketStore';
+import { supabase } from '@/services/supabase/client';
+import { Toast, useToast } from '@/components/ui';
+import { cn, formatPrice } from '@/utils';
+import type { ProductData } from '@/utils/parser';
+
+type ScrapeStatus = 'idle' | 'scraping' | 'saving' | 'success' | 'error';
+type TabType = 'pocket' | 'today';
+
+export default function Popup() {
+  const { t } = useTranslation();
+  const { isAuthenticated, isLoading: authLoading, signIn, signUp, error: authError, clearError } = useAuth();
+  const { pockets, selectedPocketId, select: selectPocket, create: createPocket, refresh: refreshPockets } = usePockets();
+  const { items, loading: itemsLoading, add: addItem, refresh: refreshItems, fetchToday } = useItems();
+  const pocketsLoading = usePocketStore((state) => state.pocketsLoading);
+  const { toast, showToast, hideToast } = useToast();
+
+  const [productData, setProductData] = useState<ProductData | null>(null);
+  const [status, setStatus] = useState<ScrapeStatus>('idle');
+  const [scrapeError, setScrapeError] = useState<string>('');
+
+  // 이미지 선택기 상태
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+
+  // 저장 완료 상태 (UX 개선)
+  const [isSaved, setIsSaved] = useState(false);
+  const [savedPocketName, setSavedPocketName] = useState('');
+
+  // 상품명 편집 상태
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState('');
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // 탭 상태
+  const [activeTab, setActiveTab] = useState<TabType>('pocket');
+  const [todayItems, setTodayItems] = useState<typeof items>([]);
+  
+  // 검색 상태
+  const [searchQuery, setSearchQuery] = useState('');
+  
+  // 새 폴더 생성 상태
+  const [isCreatingPocket, setIsCreatingPocket] = useState(false);
+  const [newPocketName, setNewPocketName] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+
+  // 로그인 폼 상태
+  const [isLoginMode, setIsLoginMode] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // 현재 탭 URL 추적
+  const currentUrlRef = useRef<string>('');
+
+  // ============================================================
+  // Side Panel 환경 대응: 컴포넌트 마운트 시 Auth 세션 복구 + 로그인 감지
+  // Race Condition 방지: initialize 완료 후에만 데이터 요청
+  // ============================================================
+  useEffect(() => {
+    const initData = async () => {
+      try {
+        console.log('[Popup] 🔄 Initializing auth session...');
+        
+        // 1. 세션 복구 시도 (await으로 완료 대기!)
+        await useAuthStore.getState().initialize();
+        
+        // 2. 복구 후 유저 확인
+        const { user } = useAuthStore.getState();
+        
+        if (user) {
+          console.log('[Popup] ✅ Auth detected, loading data for user:', user.id);
+          
+          // 3. 유저가 있을 때만 데이터 로드 (병렬 처리로 속도 개선)
+          await Promise.all([
+            usePocketStore.getState().fetchPockets(),
+            usePocketStore.getState().fetchTodayItems()
+          ]);
+          
+          console.log('[Popup] 🎉 Initial data loaded successfully');
+        } else {
+          console.log('[Popup] ⚠️ No authenticated user found');
+        }
+      } catch (error) {
+        console.error('[Popup] ❌ Init error:', error);
+      }
+    };
+
+    initData();
+
+    // 4. (중요) 실시간 인증 상태 변화 감지 (로그인 직후 대응)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('[Popup] 🔔 Auth state changed:', event, session?.user?.id);
+      
+      if (event === 'SIGNED_IN' && session) {
+        console.log('[Popup] ✅ User signed in, reloading data');
+        // 로그인 성공 이벤트가 발생하면 즉시 데이터 리로드
+        try {
+          await Promise.all([
+            usePocketStore.getState().fetchPockets(),
+            usePocketStore.getState().fetchTodayItems()
+          ]);
+        } catch (error) {
+          console.error('[Popup] ❌ Error reloading data after sign in:', error);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        console.log('[Popup] 🚪 User signed out, clearing data');
+        // 로그아웃 시 데이터 비우기
+        usePocketStore.setState({ 
+          pockets: [], 
+          items: [], 
+          selectedPocketId: null 
+        });
+      }
+    });
+
+    // 클린업: 리스너 해제
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  // ============================================================
+  // 현재 탭에서 상품 정보 스크래핑
+  // ============================================================
+  const scrapeCurrentPage = useCallback(async () => {
+    if (typeof chrome === 'undefined' || !chrome.tabs) {
+      setScrapeError(t('error.not_extension'));
+      setStatus('error');
+      return;
+    }
+
+    setStatus('scraping');
+    setScrapeError('');
+    setIsSaved(false);
+    setSelectedImageIndex(0);
+    setIsEditingTitle(false);
+
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+      
+      if (!tab?.id || tab.id === chrome.tabs.TAB_ID_NONE) {
+        setScrapeError(t('error.no_tab_info'));
+        setStatus('error');
+        return;
+      }
+
+      currentUrlRef.current = tab.url || '';
+
+      if (tab.url?.startsWith('chrome://') || tab.url?.startsWith('edge://') || tab.url?.startsWith('about:')) {
+        setScrapeError(t('error.restricted_page'));
+        setStatus('error');
+        return;
+      }
+
+      chrome.tabs.sendMessage(
+        tab.id,
+        { type: 'SCRAPE_PRODUCT' },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            console.error('[Popup] Message error:', chrome.runtime.lastError.message);
+            setScrapeError(t('error.page_communication'));
+            setStatus('error');
+            return;
+          }
+
+          if (response?.success && response.data) {
+            setProductData(response.data);
+            setEditedTitle(response.data.title); // 편집용 제목 초기화
+            setScrapeError('');
+            setStatus('idle');
+          } else {
+            setScrapeError(response?.error || t('error.product_not_found'));
+            setStatus('error');
+          }
+        }
+      );
+    } catch (error) {
+      console.error('[Popup] Scrape error:', error);
+      setScrapeError(t('common.error'));
+      setStatus('error');
+    }
+  }, [t]);
+
+  // ============================================================
+  // Chrome Tab Event Listeners (사이드 패널 동기화)
+  // ============================================================
+  useEffect(() => {
+    if (!isAuthenticated || typeof chrome === 'undefined') return;
+
+    scrapeCurrentPage();
+
+    const handleTabActivated = (activeInfo: chrome.tabs.TabActiveInfo) => {
+      console.log('[Popup] Tab activated:', activeInfo.tabId);
+      setTimeout(() => {
+        scrapeCurrentPage();
+      }, 100);
+    };
+
+    const handleTabUpdated = (
+      _tabId: number,
+      changeInfo: chrome.tabs.TabChangeInfo,
+      tab: chrome.tabs.Tab
+    ) => {
+      if (changeInfo.status === 'complete' && tab.active) {
+        if (tab.url && tab.url !== currentUrlRef.current) {
+          console.log('[Popup] Tab URL changed:', tab.url);
+          currentUrlRef.current = tab.url;
+          scrapeCurrentPage();
+        }
+      }
+    };
+
+    chrome.tabs.onActivated.addListener(handleTabActivated);
+    chrome.tabs.onUpdated.addListener(handleTabUpdated);
+
+    return () => {
+      chrome.tabs.onActivated.removeListener(handleTabActivated);
+      chrome.tabs.onUpdated.removeListener(handleTabUpdated);
+    };
+  }, [isAuthenticated, scrapeCurrentPage]);
+
+  // ============================================================
+  // Today 탭 - DB의 24시간 로직을 신뢰 (프론트엔드 필터링 제거)
+  // ============================================================
+  useEffect(() => {
+    if (activeTab === 'today' && isAuthenticated) {
+      // DB RPC(get_today_items)로 24시간 이내 데이터 조회
+      fetchToday().then(() => {
+        // fetchToday가 items 상태를 업데이트하므로 별도 필터링 불필요
+        console.log('[Popup] Today items fetched from DB (24h logic)');
+      }).catch((err) => {
+        console.error('[Popup] Failed to fetch today items:', err);
+      });
+    }
+  }, [activeTab, isAuthenticated, fetchToday]);
+
+  // Today 탭용 아이템 (items 상태를 그대로 사용)
+  useEffect(() => {
+    if (activeTab === 'today') {
+      setTodayItems(items);
+    }
+  }, [activeTab, items]);
+
+  // 폴더 검색 필터링
+  const filteredPockets = pockets.filter((pocket) =>
+    pocket.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // ============================================================
+  // 이미지 네비게이션 (Carousel)
+  // ============================================================
+  const imageUrls = productData?.imageUrls || [];
+  const currentImageUrl = imageUrls[selectedImageIndex] || productData?.imageUrl || '';
+  const hasMultipleImages = imageUrls.length > 1;
+
+  const handlePrevImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (selectedImageIndex > 0) {
+      setSelectedImageIndex(selectedImageIndex - 1);
+    }
+  };
+
+  const handleNextImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (selectedImageIndex < imageUrls.length - 1) {
+      setSelectedImageIndex(selectedImageIndex + 1);
+    }
+  };
+
+  // ============================================================
+  // 상품명 편집 핸들러
+  // ============================================================
+  const handleStartEditTitle = () => {
+    if (productData) {
+      setEditedTitle(productData.title);
+      setIsEditingTitle(true);
+      setTimeout(() => titleInputRef.current?.focus(), 50);
+    }
+  };
+
+  const handleSaveTitle = () => {
+    if (productData && editedTitle.trim()) {
+      setProductData({
+        ...productData,
+        title: editedTitle.trim(),
+      });
+    }
+    setIsEditingTitle(false);
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSaveTitle();
+    } else if (e.key === 'Escape') {
+      setIsEditingTitle(false);
+      if (productData) setEditedTitle(productData.title);
+    }
+  };
+
+  // ============================================================
+  // 로그인/회원가입 핸들러
+  // ============================================================
+  const handleAuthSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return;
+
+    setIsSubmitting(true);
+    clearError();
+
+    try {
+      if (isLoginMode) {
+        await signIn(email, password);
+      } else {
+        await signUp(email, password);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // ============================================================
+  // 폴더에 저장 핸들러
+  // ============================================================
+  const handleSaveToPocket = async (pocketId: string) => {
+    if (!productData) {
+      showToast(t('toast.fetch_product_first'), 'warning');
+      return;
+    }
+
+    const pocket = pockets.find((p) => p.id === pocketId);
+    setStatus('saving');
+
+    try {
+      const result = await addItem({
+        url: productData.url,
+        title: productData.title, // 편집된 제목 사용
+        site_name: productData.mallName || null,
+        image_url: currentImageUrl || null,
+        price: productData.price,
+        currency: productData.currency || 'KRW',
+        pocket_id: pocketId,
+        is_pinned: false,
+        memo: null,
+        deleted_at: null,
+      });
+
+      if (result) {
+        setStatus('success');
+        setIsSaved(true);
+        setSavedPocketName(pocket?.name || 'Pocket');
+        showToast(t('toast.item_saved'), 'success');
+        refreshItems();
+      } else {
+        throw new Error('Save failed');
+      }
+    } catch (error) {
+      console.error('[Popup] Save error:', error);
+      setStatus('error');
+      showToast(t('toast.save_failed'), 'error');
+    }
+  };
+
+  // 저장 취소 (되돌리기)
+  const handleUndoSave = () => {
+    setIsSaved(false);
+    setSavedPocketName('');
+    setStatus('idle');
+  };
+
+  // ============================================================
+  // 새 폴더 생성 핸들러
+  // ============================================================
+  const handleCreatePocket = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    if (!newPocketName.trim()) return;
+    if (isCreating) return;
+
+    setIsCreating(true);
+
+    try {
+      const authState = useAuthStore.getState();
+      
+      if (!authState.user) {
+        await authState.initialize();
+        
+        const refreshedState = useAuthStore.getState();
+        if (!refreshedState.user) {
+          showToast(t('toast.login_required'), 'warning');
+          setIsCreating(false);
+          return;
+        }
+      }
+
+      const result = await createPocket(newPocketName.trim());
+      
+      if (result) {
+        setNewPocketName('');
+        setIsCreatingPocket(false);
+        showToast(t('toast.pocket_created'), 'success');
+        refreshPockets();
+      }
+    } catch (error) {
+      console.error('[Popup] Create pocket error:', error);
+      const errorMessage = error instanceof Error ? error.message : t('common.error');
+      showToast(errorMessage, 'error');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  // 아이템 삭제 (Today 탭에서)
+  const handleRemoveItem = async (itemId: string) => {
+    setTodayItems((prev) => prev.filter((item) => item.id !== itemId));
+  };
+
+  // 팝업 닫기
+  const handleClose = () => {
+    window.close();
+  };
+
+  // 설정 열기
+  const handleOpenSettings = () => {
+    if (typeof chrome !== 'undefined' && chrome.tabs) {
+      chrome.tabs.create({ url: chrome.runtime.getURL('index.html#/settings') });
+    }
+  };
+
+  // ============================================================
+  // 로딩 상태
+  // ============================================================
+  if (authLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-white">
+        <div className="animate-spin w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  // ============================================================
+  // 로그인 화면
+  // ============================================================
+  if (!isAuthenticated) {
+    return (
+      <div className="h-screen flex flex-col bg-white overflow-hidden">
+        <header className="flex-none flex items-center justify-between px-4 py-3 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-violet-500 flex items-center justify-center">
+              <ShoppingBag className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-lg font-bold text-violet-500">pockest</span>
+          </div>
+          <button onClick={handleClose} className="p-1 hover:bg-gray-100 rounded-lg">
+            <X className="w-5 h-5 text-gray-400" />
+          </button>
+        </header>
+
+        <div className="flex-1 flex flex-col items-center justify-center p-6">
+          <div className="w-16 h-16 rounded-2xl bg-violet-100 flex items-center justify-center mb-4">
+            <ShoppingBag className="w-8 h-8 text-violet-500" />
+          </div>
+          <h1 className="text-xl font-bold text-gray-900 mb-1">Pockest</h1>
+          <p className="text-gray-500 text-sm mb-6 text-center">
+            {isLoginMode ? t('auth.login_title') : t('auth.signup_title')}
+          </p>
+
+          <form onSubmit={handleAuthSubmit} className="w-full space-y-3">
+            <input
+              type="email"
+              placeholder={t('auth.email_placeholder')}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+              required
+            />
+            
+            <input
+              type="password"
+              placeholder={t('auth.password_placeholder')}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+              required
+            />
+
+            {authError && (
+              <p className="text-xs text-red-600 bg-red-50 p-3 rounded-xl">
+                {authError}
+              </p>
+            )}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full h-12 bg-violet-500 hover:bg-violet-600 text-white font-semibold rounded-xl transition-colors disabled:opacity-50"
+            >
+              {isSubmitting ? t('auth.processing') : (isLoginMode ? t('auth.login_btn') : t('auth.signup_btn'))}
+            </button>
+          </form>
+
+          <button
+            type="button"
+            onClick={() => {
+              setIsLoginMode(!isLoginMode);
+              clearError();
+            }}
+            className="mt-4 text-sm text-violet-500 hover:text-violet-600 font-medium"
+          >
+            {isLoginMode ? t('auth.signup_link') : t('auth.login_link')}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ============================================================
+  // 메인 화면 (인증됨) - Full Height 레이아웃
+  // ============================================================
+  return (
+    <div className="h-screen flex flex-col bg-white overflow-hidden">
+      {/* 헤더 - flex-none (고정 높이) */}
+      <header className="flex-none flex items-center justify-between px-4 py-2 border-b border-gray-100">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-lg bg-violet-500 flex items-center justify-center">
+            <ShoppingBag className="w-3.5 h-3.5 text-white" />
+          </div>
+          <span className="text-base font-bold text-violet-500">pockest</span>
+        </div>
+        <div className="flex items-center gap-0.5">
+          <button 
+            onClick={handleOpenSettings}
+            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <Settings className="w-4 h-4 text-gray-400" />
+          </button>
+          <button 
+            onClick={handleClose}
+            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            <X className="w-4 h-4 text-gray-400" />
+          </button>
+        </div>
+      </header>
+
+      {/* 상품 정보 프리뷰 영역 - flex-none (고정 높이) */}
+      {isSaved ? (
+        <div className="flex-none px-4 py-4 bg-green-50 border-b border-green-100">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="w-8 h-8 text-green-500 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-green-700">
+                "{savedPocketName}"{t('popup.saved_to')}
+              </p>
+              <p className="text-xs text-green-600">{t('popup.see_other_products')}</p>
+            </div>
+            <button
+              onClick={handleUndoSave}
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-white text-green-600 text-xs font-medium rounded-lg border border-green-200 hover:bg-green-50 transition-colors flex-shrink-0"
+            >
+              <Undo2 className="w-3 h-3" />
+              {t('popup.undo')}
+            </button>
+          </div>
+        </div>
+      ) : status === 'scraping' ? (
+        <div className="flex-none px-4 py-4 bg-gray-50 border-b border-gray-100">
+          <div className="flex items-center justify-center gap-2">
+            <div className="animate-spin w-4 h-4 border-2 border-violet-500 border-t-transparent rounded-full" />
+            <span className="text-sm text-gray-500">{t('popup.fetching_product')}</span>
+          </div>
+        </div>
+      ) : status === 'error' || (!productData && status === 'idle') ? (
+        <div className="flex-none px-4 py-4 bg-gray-50 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-8 h-8 text-gray-300 flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-gray-500">
+                {scrapeError || t('popup.fetch_failed')}
+              </p>
+            </div>
+            <button
+              onClick={scrapeCurrentPage}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-100 text-violet-600 text-xs font-medium rounded-lg hover:bg-violet-200 transition-colors flex-shrink-0"
+            >
+              <RefreshCw className="w-3 h-3" />
+              {t('popup.retry')}
+            </button>
+          </div>
+        </div>
+      ) : productData ? (
+        <div className="flex-none px-4 py-3 bg-gray-50 border-b border-gray-100">
+          <div className="flex items-start gap-3">
+            {/* 이미지 선택기 (Carousel) */}
+            <div className="relative w-24 h-24 rounded-xl overflow-hidden bg-gray-200 flex-shrink-0">
+              {currentImageUrl ? (
+                <img src={currentImageUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <ShoppingBag className="w-8 h-8 text-gray-400" />
+                </div>
+              )}
+              
+              {hasMultipleImages && (
+                <>
+                  <button
+                    onClick={handlePrevImage}
+                    disabled={selectedImageIndex === 0}
+                    className={cn(
+                      'absolute left-0 top-1/2 -translate-y-1/2 w-6 h-6 bg-black/50 text-white flex items-center justify-center rounded-r transition-opacity',
+                      selectedImageIndex === 0 ? 'opacity-30' : 'hover:bg-black/70'
+                    )}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={handleNextImage}
+                    disabled={selectedImageIndex === imageUrls.length - 1}
+                    className={cn(
+                      'absolute right-0 top-1/2 -translate-y-1/2 w-6 h-6 bg-black/50 text-white flex items-center justify-center rounded-l transition-opacity',
+                      selectedImageIndex === imageUrls.length - 1 ? 'opacity-30' : 'hover:bg-black/70'
+                    )}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                  <div className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded">
+                    {selectedImageIndex + 1}/{imageUrls.length}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* 상품 정보 + 제목 편집 */}
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] text-violet-500 font-medium mb-0.5">{productData.mallName}</p>
+              
+              {/* 제목 편집 영역 */}
+              {isEditingTitle ? (
+                <input
+                  ref={titleInputRef}
+                  type="text"
+                  value={editedTitle}
+                  onChange={(e) => setEditedTitle(e.target.value)}
+                  onBlur={handleSaveTitle}
+                  onKeyDown={handleTitleKeyDown}
+                  className="w-full text-sm font-medium text-gray-900 border border-violet-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-violet-400"
+                />
+              ) : (
+                <div className="flex items-start gap-2">
+                  <p className="text-sm font-medium text-gray-900 line-clamp-2 flex-1">{productData.title}</p>
+                  <button
+                    onClick={handleStartEditTitle}
+                    className="px-2 py-0.5 text-[10px] font-medium text-violet-500 bg-violet-50 hover:bg-violet-100 rounded-full transition-colors flex-shrink-0"
+                  >
+                    {t('popup.edit')}
+                  </button>
+                </div>
+              )}
+              
+              {productData.price && (
+                <p className="text-sm font-bold text-gray-900 mt-0.5">
+                  {formatPrice(productData.price, productData.currency)}
+                </p>
+              )}
+            </div>
+          </div>
+          
+          {/* 이미지 썸네일 리스트 */}
+          {hasMultipleImages && (
+            <div className="flex gap-1.5 mt-2 overflow-x-auto pb-1">
+              {imageUrls.slice(0, 5).map((img, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setSelectedImageIndex(idx)}
+                  className={cn(
+                    'w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-all',
+                    idx === selectedImageIndex
+                      ? 'border-violet-500'
+                      : 'border-transparent hover:border-gray-300'
+                  )}
+                >
+                  <img src={img} alt="" className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      {/* Body - flex-1 (남은 공간 전부 차지) */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* 타이틀 + 검색바 - flex-none */}
+        <div className="flex-none px-4 pt-3 pb-2">
+          <h2 className="text-center text-gray-800 font-medium text-xs mb-2">
+            {t('popup.select_pocket')}
+          </h2>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+            <input
+              type="text"
+              placeholder={t('popup.search_pocket')}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-8 pr-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-sm focus:outline-none focus:border-violet-300 focus:bg-white transition-colors"
+            />
+          </div>
+        </div>
+
+        {/* 탭 메뉴 - flex-none */}
+        <div className="flex-none flex border-b border-gray-100">
+          <button
+            onClick={() => setActiveTab('pocket')}
+            className={cn(
+              'flex-1 py-2 text-xs font-medium text-center transition-colors relative',
+              activeTab === 'pocket'
+                ? 'text-violet-600'
+                : 'text-gray-400 hover:text-gray-600'
+            )}
+          >
+            {t('popup.tab_pocket')}
+            {activeTab === 'pocket' && (
+              <div className="absolute bottom-0 left-4 right-4 h-0.5 bg-violet-500 rounded-full" />
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('today')}
+            className={cn(
+              'flex-1 py-2 text-xs font-medium text-center transition-colors relative',
+              activeTab === 'today'
+                ? 'text-violet-600'
+                : 'text-gray-400 hover:text-gray-600'
+            )}
+          >
+            {t('popup.tab_today')}
+            {activeTab === 'today' && (
+              <div className="absolute bottom-0 left-4 right-4 h-0.5 bg-violet-500 rounded-full" />
+            )}
+          </button>
+        </div>
+
+        {/* 리스트 영역 - flex-1 overflow-y-auto + pb-20 (하단 버튼 공간 확보) */}
+        <div className="flex-1 overflow-y-auto pb-20">
+          {/* 로딩 스피너: 데이터 로드 중일 때 표시 */}
+          {(activeTab === 'pocket' && pocketsLoading) || (activeTab === 'today' && itemsLoading) ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-3">
+              <div className="animate-spin w-8 h-8 border-3 border-violet-500 border-t-transparent rounded-full" />
+              <p className="text-sm text-gray-500">{t('popup.loading_data')}</p>
+            </div>
+          ) : activeTab === 'pocket' ? (
+            <div className="divide-y divide-gray-50">
+              {filteredPockets.length === 0 ? (
+                <div className="text-center py-8 text-gray-400 text-sm">
+                  {searchQuery ? t('popup.no_search_results') : t('popup.no_folders')}
+                </div>
+              ) : (
+                filteredPockets.map((pocket) => {
+                  // ✅ 서버에서 가져온 값 사용 (정확한 카운트 + 썸네일)
+                  const pocketItemCount = pocket.item_count ?? 0;
+                  const thumbnails = pocket.recent_thumbnails ?? [];
+                  const isSelected = selectedPocketId === pocket.id;
+
+                  return (
+                    <div
+                      key={pocket.id}
+                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer transition-colors"
+                      onClick={() => {
+                        selectPocket(pocket.id);
+                        if (productData && !isSaved) {
+                          handleSaveToPocket(pocket.id);
+                        }
+                      }}
+                    >
+                      <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 grid grid-cols-2 grid-rows-2">
+                        {thumbnails.length > 0 ? (
+                          // 4칸 그리드: 썸네일이 있으면 표시, 없으면 빈 칸
+                          [0, 1, 2, 3].map((idx) => (
+                            <div key={idx} className="w-full h-full overflow-hidden">
+                              {thumbnails[idx] ? (
+                                <img src={thumbnails[idx]} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full bg-gray-200" />
+                              )}
+                            </div>
+                          ))
+                        ) : (
+                          <div className="col-span-2 row-span-2 flex items-center justify-center">
+                            <Folder className="w-5 h-5 text-gray-300" />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm text-gray-900 truncate">{pocket.name}</p>
+                        <p className="text-xs text-gray-400">{t('popup.item_count', { count: pocketItemCount })}</p>
+                      </div>
+
+                      {isSelected && status === 'saving' ? (
+                        <div className="animate-spin w-4 h-4 border-2 border-violet-500 border-t-transparent rounded-full" />
+                      ) : productData && !isSaved ? (
+                        <button
+                          className={cn(
+                            'px-3 py-1 text-xs font-medium rounded-full transition-colors',
+                            isSelected
+                              ? 'bg-violet-500 text-white'
+                              : 'bg-gray-100 text-gray-500 hover:bg-violet-100 hover:text-violet-600'
+                          )}
+                        >
+                          {t('popup.save_btn')}
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-50">
+              {todayItems.length === 0 ? (
+                <div className="text-center py-8 text-gray-400 text-sm">
+                  {t('popup.no_today_items')}
+                </div>
+              ) : (
+                todayItems.map((item) => {
+                  // 저장 시간을 로컬 타임존으로 변환
+                  const savedTime = new Date(item.created_at).toLocaleTimeString('ko-KR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  });
+                  
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer transition-colors"
+                      onClick={() => window.open(item.url, '_blank')}
+                    >
+                      <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                        {item.image_url ? (
+                          <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <ShoppingBag className="w-5 h-5 text-gray-300" />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-[10px] text-gray-400">{item.site_name}</p>
+                          <span className="text-[10px] text-gray-300">•</span>
+                          <p className="text-[10px] text-violet-400">{savedTime}</p>
+                        </div>
+                        <p className="font-medium text-sm text-gray-900 truncate">{item.title}</p>
+                        {item.price && (
+                          <p className="text-xs font-bold text-gray-900">
+                            {formatPrice(item.price, item.currency || 'KRW')}
+                          </p>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveItem(item.id);
+                        }}
+                        className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                      >
+                        <X className="w-3.5 h-3.5 text-gray-400" />
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Footer - fixed bottom (하단 고정) */}
+      <div className="fixed bottom-0 left-0 right-0 p-3 bg-white/95 backdrop-blur border-t border-gray-100">
+        {isCreatingPocket ? (
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              placeholder={t('popup.new_pocket_name')}
+              value={newPocketName}
+              onChange={(e) => setNewPocketName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleCreatePocket();
+                }
+              }}
+              className="flex-1 px-3 py-2.5 border border-violet-200 rounded-xl text-sm focus:outline-none focus:border-violet-400"
+              autoFocus
+            />
+            <button
+              type="button"
+              onClick={(e) => handleCreatePocket(e)}
+              disabled={!newPocketName.trim() || isCreating}
+              className="p-2.5 bg-violet-500 text-white rounded-xl hover:bg-violet-600 disabled:opacity-50 transition-colors"
+            >
+              {isCreating ? (
+                <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+              ) : (
+                <Check className="w-4 h-4" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsCreatingPocket(false);
+                setNewPocketName('');
+              }}
+              className="p-2.5 bg-gray-100 text-gray-500 rounded-xl hover:bg-gray-200 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsCreatingPocket(true)}
+            className="w-full h-11 bg-violet-500 hover:bg-violet-600 text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors shadow-lg shadow-violet-200"
+          >
+            <span className="text-sm">{t('popup.create_pocket')}</span>
+            <Edit3 className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
+      {/* Toast 알림 */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={hideToast}
+        />
+      )}
+    </div>
+  );
+}
