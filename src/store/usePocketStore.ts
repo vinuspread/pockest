@@ -344,30 +344,43 @@ export const usePocketStore = create<PocketState>((set, get) => ({
         return;
       }
 
+      // 1. RPC 호출 시도
       const { data, error } = await supabase
         .rpc('get_today_items', { p_user_id: userData.user.id });
 
       if (error) {
-        console.error('[fetchTodayItems] ❌ RPC error:', {
-          message: error.message,
-          code: error.code,
-          details: error.details,
-          hint: error.hint
-        });
-        console.error('[fetchTodayItems] 💡 Tip: Check if get_today_items() RPC function exists in Supabase');
-        set({ items: [], itemsLoading: false, itemsError: error.message });
+        console.warn('[fetchTodayItems] ⚠️ RPC failed, falling back to standard query:', JSON.stringify(error, null, 2));
+        
+        // 2. Fallback: 일반 Select 쿼리로 오늘(24시간 이내) 데이터 조회
+        // 24시간 이내 기준
+        const oneDayAgo = new Date();
+        oneDayAgo.setHours(oneDayAgo.getHours() - 24);
+        
+        console.log('[fetchTodayItems] 🔄 Executing fallback query from:', oneDayAgo.toISOString());
+
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('items')
+          .select('*')
+          .eq('user_id', userData.user.id)
+          .gte('created_at', oneDayAgo.toISOString())
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false });
+
+        if (fallbackError) {
+          console.error('[fetchTodayItems] ❌ Fallback query failed:', fallbackError.message);
+          set({ items: [], itemsLoading: false, itemsError: fallbackError.message });
+          return;
+        }
+
+        console.log('[fetchTodayItems] ✅ Success (Fallback)! Fetched', fallbackData?.length || 0, 'items');
+        set({ items: (fallbackData as Item[]) || [], itemsLoading: false, itemsError: null });
         return;
       }
       
-      console.log('[fetchTodayItems] ✅ Success! Fetched', data?.length || 0, 'today items');
-      if (data && data.length > 0) {
-        console.log('[fetchTodayItems] 📦 Sample item:', {
-          title: data[0].title,
-          created_at: data[0].created_at,
-          site_name: data[0].site_name
-        });
-      }
+      // RPC 성공 시
+      console.log('[fetchTodayItems] ✅ Success (RPC)! Fetched', data?.length || 0, 'today items');
       set({ items: (data as Item[]) || [], itemsLoading: false, itemsError: null });
+
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('[fetchTodayItems] ❌ Exception:', errorMessage, error);

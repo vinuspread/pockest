@@ -26,10 +26,10 @@ export function useItems() {
     setPage,
   } = usePocketStore();
 
-  // 초기 로드
-  useEffect(() => {
-    fetchItems();
-  }, []);
+  // 초기 로드 제거 (부모 컴포넌트에서 인증 후 명시적으로 호출)
+  // useEffect(() => {
+  //   fetchItems();
+  // }, []);
 
   // 페이지네이션 정보
   const totalPages = Math.ceil(itemsTotal / pageSize);
@@ -93,6 +93,8 @@ export function useItems() {
     prevPage: () => hasPrevPage && setPage(currentPage - 1),
   };
 }
+
+
 
 
 

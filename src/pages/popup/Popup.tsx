@@ -61,71 +61,49 @@ export default function Popup() {
   const currentUrlRef = useRef<string>('');
 
   // ============================================================
-  // Side Panel 환경 대응: 컴포넌트 마운트 시 Auth 세션 복구 + 로그인 감지
-  // Race Condition 방지: initialize 완료 후에만 데이터 요청
+  // Side Panel 환경 대응: 컴포넌트 마운트 시 Auth 세션 복구 (1회만)
   // ============================================================
   useEffect(() => {
-    const initData = async () => {
+    const initAuth = async () => {
       try {
         console.log('[Popup] 🔄 Initializing auth session...');
-        
-        // 1. 세션 복구 시도 (await으로 완료 대기!)
         await useAuthStore.getState().initialize();
-        
-        // 2. 복구 후 유저 확인
-        const { user } = useAuthStore.getState();
-        
-        if (user) {
-          console.log('[Popup] ✅ Auth detected, loading data for user:', user.id);
-          
-          // 3. 유저가 있을 때만 데이터 로드 (병렬 처리로 속도 개선)
-          await Promise.all([
-            usePocketStore.getState().fetchPockets(),
-            usePocketStore.getState().fetchTodayItems()
-          ]);
-          
-          console.log('[Popup] 🎉 Initial data loaded successfully');
-        } else {
-          console.log('[Popup] ⚠️ No authenticated user found');
-        }
+        console.log('[Popup] ✅ Auth initialization complete');
       } catch (error) {
         console.error('[Popup] ❌ Init error:', error);
       }
     };
 
-    initData();
-
-    // 4. (중요) 실시간 인증 상태 변화 감지 (로그인 직후 대응)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('[Popup] 🔔 Auth state changed:', event, session?.user?.id);
-      
-      if (event === 'SIGNED_IN' && session) {
-        console.log('[Popup] ✅ User signed in, reloading data');
-        // 로그인 성공 이벤트가 발생하면 즉시 데이터 리로드
-        try {
-          await Promise.all([
-            usePocketStore.getState().fetchPockets(),
-            usePocketStore.getState().fetchTodayItems()
-          ]);
-        } catch (error) {
-          console.error('[Popup] ❌ Error reloading data after sign in:', error);
-        }
-      } else if (event === 'SIGNED_OUT') {
-        console.log('[Popup] 🚪 User signed out, clearing data');
-        // 로그아웃 시 데이터 비우기
-        usePocketStore.setState({ 
-          pockets: [], 
-          items: [], 
-          selectedPocketId: null 
-        });
-      }
-    });
-
-    // 클린업: 리스너 해제
-    return () => {
-      subscription.unsubscribe();
-    };
+    initAuth();
   }, []);
+
+  // ============================================================
+  // 로그인 상태 변화 감지 → 데이터 자동 로드 (핵심 수정!)
+  // ============================================================
+  useEffect(() => {
+    if (!isAuthenticated) {
+      console.log('[Popup] ⚠️ Not authenticated, skipping data fetch');
+      return;
+    }
+
+    // 로그인 완료 시 데이터 자동 로드
+    const loadData = async () => {
+      try {
+        console.log('[Popup] 🔄 Authenticated! Loading pockets and today items...');
+        
+        await Promise.all([
+          usePocketStore.getState().fetchPockets(),
+          usePocketStore.getState().fetchTodayItems()
+        ]);
+        
+        console.log('[Popup] 🎉 Data loaded successfully');
+      } catch (error) {
+        console.error('[Popup] ❌ Error loading data:', error);
+      }
+    };
+
+    loadData();
+  }, [isAuthenticated]); // isAuthenticated가 true로 바뀌면 자동 실행
 
   // ============================================================
   // 현재 탭에서 상품 정보 스크래핑
@@ -434,7 +412,7 @@ export default function Popup() {
   // 설정 열기
   const handleOpenSettings = () => {
     if (typeof chrome !== 'undefined' && chrome.tabs) {
-      chrome.tabs.create({ url: chrome.runtime.getURL('index.html#/settings') });
+      chrome.tabs.create({ url: chrome.runtime.getURL('index.html#/dashboard') });
     }
   };
 

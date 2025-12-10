@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth, usePockets, useItems } from '@/hooks';
+import { usePocketStore } from '@/store/usePocketStore';
 import { Header, Sidebar } from '@/components/layout';
 import { Card, CardContent, Button, Input } from '@/components/ui';
 import { Star, Trash2, ExternalLink, Mail, Lock } from 'lucide-react';
@@ -9,12 +10,80 @@ import { cn, formatPrice, formatRelativeTime } from '@/utils';
 type ViewType = 'all' | 'today' | 'pinned' | 'trash';
 
 export default function Dashboard() {
+  console.log('[Dashboard] 🚀 Component mounting...');
+
   const { t } = useTranslation();
   const { user, isAuthenticated, isLoading: authLoading, signIn, signUp, error, clearError } = useAuth();
   const { pockets, selectedPocketId, select: selectPocket } = usePockets();
-  const { items, loading: itemsLoading, togglePin, trash, search } = useItems();
+  const { items, loading: itemsLoading, togglePin, trash, search, fetchToday, refresh, showPinnedOnly } = useItems();
   
   const [currentView, setCurrentView] = useState<ViewType>('all');
+
+  // 디버깅용 로그
+  console.log('[Dashboard] 📊 Render state:', { 
+    isAuthenticated,
+    authLoading,
+    user: user?.email,
+    currentView, 
+    itemsLoading, 
+    itemsCount: items?.length,
+    pocketsCount: pockets?.length,
+    isItemsArray: Array.isArray(items),
+    hasItems: items && items.length > 0
+  });
+
+  // 인증 완료 시 초기 데이터 로드
+  useEffect(() => {
+    if (!isAuthenticated) {
+      console.log('[Dashboard] ⚠️ Not authenticated, skipping initial data load');
+      return;
+    }
+
+    console.log('[Dashboard] 🔄 Authenticated! Loading initial data...');
+    const loadInitialData = async () => {
+      try {
+        await Promise.all([
+          usePocketStore.getState().fetchPockets(),
+          refresh()
+        ]);
+        console.log('[Dashboard] 🎉 Initial data loaded');
+      } catch (err) {
+        console.error('[Dashboard] ❌ Error loading initial data:', err);
+      }
+    };
+
+    loadInitialData();
+  }, [isAuthenticated, refresh]);
+
+  // 뷰 변경 시 데이터 갱신
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    console.log('[Dashboard] View changed:', currentView);
+    
+    // 비동기 함수 호출 시 에러 핸들링
+    const fetchData = async () => {
+      try {
+        if (currentView === 'today') {
+          await fetchToday();
+        } else if (currentView === 'pinned') {
+          showPinnedOnly(true);
+        } else if (currentView === 'all') {
+          showPinnedOnly(false); // 핀 필터 해제
+          await refresh();
+        } else if (currentView === 'trash') {
+          // TODO: 휴지통 보기 기능 구현 필요 (현재는 일반 목록과 동일하게 동작할 수 있음)
+          console.warn('Trash view implementation pending');
+          // 임시로 전체 목록 보여주기
+          await refresh();
+        }
+      } catch (err) {
+        console.error('[Dashboard] Error fetching data for view:', currentView, err);
+      }
+    };
+
+    fetchData();
+  }, [currentView, isAuthenticated, fetchToday, refresh, showPinnedOnly]);
   
   // 로그인 폼 상태
   const [isLoginMode, setIsLoginMode] = useState(true);
@@ -152,7 +221,7 @@ export default function Dashboard() {
                   {currentView === 'trash' && t('dashboard.trash')}
                 </h1>
                 <p className="text-gray-500 mt-1">
-                  {t('dashboard.total_items', { count: items.length })}
+                  {t('dashboard.total_items', { count: items?.length || 0 })}
                 </p>
               </div>
               {user && (
@@ -165,13 +234,13 @@ export default function Dashboard() {
               <div className="flex items-center justify-center py-20">
                 <div className="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full" />
               </div>
-            ) : items.length === 0 ? (
+            ) : !items || items.length === 0 ? (
               <div className="text-center py-20">
                 <p className="text-gray-500">{t('dashboard.no_items')}</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {items.map((item) => (
+                {(items || []).map((item) => (
                   <Card key={item.id} className="group overflow-hidden">
                     {/* 이미지 */}
                     <div className="relative aspect-square bg-gray-100">

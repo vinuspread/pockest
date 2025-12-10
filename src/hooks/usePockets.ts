@@ -16,10 +16,10 @@ export function usePockets() {
     selectPocket,
   } = usePocketStore();
 
-  // 초기 로드
-  useEffect(() => {
-    fetchPockets();
-  }, []);
+  // 초기 로드 제거 (부모 컴포넌트에서 인증 후 명시적으로 호출)
+  // useEffect(() => {
+  //   fetchPockets();
+  // }, []);
 
   // 기본 폴더 찾기
   const defaultPocket = pockets.find((p) => p.is_default);
@@ -83,6 +83,8 @@ export function usePockets() {
     selectAll: () => selectPocket(null),
   };
 }
+
+
 
 
 
