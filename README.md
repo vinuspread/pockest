@@ -95,5 +95,5 @@ npm run build:extension
 
 MIT
 
-
-
+---
+Last updated: 2025-12-10
