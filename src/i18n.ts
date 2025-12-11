@@ -78,3 +78,7 @@ export const getCurrentLanguage = (): SupportedLanguage => {
 
 export default i18n;
 
+
+
+
+

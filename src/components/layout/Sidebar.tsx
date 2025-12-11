@@ -10,10 +10,10 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/utils';
-import type { Pocket } from '@/types';
+import type { PocketWithCount } from '@/types';
 
 interface SidebarProps {
-  pockets: Pocket[];
+  pockets: PocketWithCount[];
   selectedPocketId: string | null;
   onSelectPocket: (id: string | null) => void;
   onCreatePocket: () => void;
@@ -77,7 +77,7 @@ export function Sidebar({
           label="모든 상품"
           active={currentView === 'all'}
           onClick={() => {
-            onSelectPocket(null);
+            onSelectPocket(null); // 포켓 선택 해제
             onViewChange('all');
           }}
         />
@@ -85,13 +85,19 @@ export function Sidebar({
           icon={<Clock className="w-5 h-5" />}
           label="오늘 저장"
           active={currentView === 'today'}
-          onClick={() => onViewChange('today')}
+          onClick={() => {
+            onSelectPocket(null); // 포켓 선택 해제
+            onViewChange('today');
+          }}
         />
         <NavItem
           icon={<Star className="w-5 h-5" />}
           label="즐겨찾기"
           active={currentView === 'pinned'}
-          onClick={() => onViewChange('pinned')}
+          onClick={() => {
+            onSelectPocket(null); // 포켓 선택 해제
+            onViewChange('pinned');
+          }}
         />
 
         {/* 폴더 섹션 */}
@@ -109,29 +115,33 @@ export function Sidebar({
           </div>
 
           <div className="space-y-1">
-            {pockets.map((pocket) => (
-              <button
-                key={pocket.id}
-                onClick={() => {
-                  onSelectPocket(pocket.id);
-                  onViewChange('all');
-                }}
-                className={cn(
-                  'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm',
-                  'transition-colors duration-150',
-                  selectedPocketId === pocket.id
-                    ? 'bg-primary-50 text-primary-700 font-medium'
-                    : 'text-gray-600 hover:bg-gray-100'
-                )}
-              >
-                <Folder className="w-4 h-4" />
-                <span className="flex-1 text-left truncate">{pocket.name}</span>
-                {pocket.is_default && (
-                  <span className="text-xs text-gray-400">기본</span>
-                )}
-                <ChevronRight className="w-4 h-4 opacity-40" />
-              </button>
-            ))}
+            {pockets.map((pocket) => {
+              const itemCount = pocket.item_count ?? 0;
+              
+              return (
+                <button
+                  key={pocket.id}
+                  onClick={() => {
+                    onSelectPocket(pocket.id);
+                  }}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm',
+                    'transition-colors duration-150',
+                    selectedPocketId === pocket.id
+                      ? 'bg-primary-50 text-primary-700 font-medium'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  )}
+                >
+                  <Folder className="w-4 h-4" />
+                  <span className="flex-1 text-left truncate">{pocket.name}</span>
+                  <span className="text-xs text-gray-400">{itemCount}</span>
+                  {pocket.is_default && (
+                    <span className="text-xs text-gray-400">기본</span>
+                  )}
+                  <ChevronRight className="w-4 h-4 opacity-40" />
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -141,7 +151,10 @@ export function Sidebar({
             icon={<Trash2 className="w-5 h-5" />}
             label="휴지통"
             active={currentView === 'trash'}
-            onClick={() => onViewChange('trash')}
+            onClick={() => {
+              onSelectPocket(null); // 포켓 선택 해제
+              onViewChange('trash');
+            }}
           />
         </div>
       </nav>
@@ -156,6 +169,8 @@ export function Sidebar({
     </aside>
   );
 }
+
+
 
 
 

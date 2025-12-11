@@ -45,7 +45,8 @@
     "retry": "Retry",
     "edit": "edit",
     "loading_data": "Loading data...",
-    "item_count": "{{count}} items"
+    "item_count": "{{count}} items",
+    "no_price": "No price info"
   },
   "dashboard": {
     "all_items": "All Items",
@@ -84,4 +85,7 @@
     "product_not_found": "Product info not found."
   }
 }
+
+
+
 

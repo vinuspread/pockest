@@ -45,7 +45,8 @@
     "retry": "重试",
     "edit": "编辑",
     "loading_data": "正在加载数据...",
-    "item_count": "{{count}}件"
+    "item_count": "{{count}}件",
+    "no_price": "无价格信息"
   },
   "dashboard": {
     "all_items": "所有商品",
@@ -84,4 +85,7 @@
     "product_not_found": "未找到商品信息。"
   }
 }
+
+
+
 

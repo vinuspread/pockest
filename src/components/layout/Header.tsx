@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Search, Bell, User } from 'lucide-react';
 import { cn } from '@/utils';
 import { Input } from '@/components/ui';
@@ -9,8 +9,24 @@ interface HeaderProps {
 }
 
 export function Header({ onSearch, className }: HeaderProps) {
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onSearch?.(e.target.value);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleSearchSubmit = () => {
+    if (searchQuery.trim()) {
+      console.log('[Header] 🔍 Search triggered:', searchQuery);
+      onSearch?.(searchQuery);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSearchSubmit();
+    }
   };
 
   return (
@@ -33,9 +49,11 @@ export function Header({ onSearch, className }: HeaderProps) {
       <div className="flex-1 max-w-md">
         <Input
           type="search"
-          placeholder="상품 검색..."
+          placeholder="상품 검색... (Enter로 검색)"
           leftIcon={<Search className="w-4 h-4" />}
-          onChange={handleSearch}
+          value={searchQuery}
+          onChange={handleSearchChange}
+          onKeyDown={handleKeyDown}
         />
       </div>
 
@@ -51,6 +69,10 @@ export function Header({ onSearch, className }: HeaderProps) {
     </header>
   );
 }
+
+
+
+
 
 
 

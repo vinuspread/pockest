@@ -13,8 +13,9 @@ export function useItems() {
     currentPage,
     pageSize,
     filters,
-    fetchItems,
+    fetchAllItems,
     fetchTodayItems,
+    searchItems,
     addItem,
     updateItem,
     moveToTrash,
@@ -44,12 +45,17 @@ export function useItems() {
     [setFilters]
   );
 
-  // 검색
+  // 검색 (Global Search)
   const search = useCallback(
     (query: string) => {
-      setFilters({ search: query || undefined });
+      if (!query.trim()) {
+        console.log('[useItems] ⚠️ Empty search query');
+        return;
+      }
+      console.log('[useItems] 🔍 Triggering search:', query);
+      searchItems(query);
     },
-    [setFilters]
+    [searchItems]
   );
 
   // 즐겨찾기만 보기
@@ -72,7 +78,7 @@ export function useItems() {
     filters,
 
     // Actions
-    refresh: fetchItems,
+    refresh: fetchAllItems,
     fetchToday: fetchTodayItems,
     add: addItem,
     update: updateItem,
@@ -90,7 +96,7 @@ export function useItems() {
     // Pagination
     goToPage: setPage,
     nextPage: () => hasNextPage && setPage(currentPage + 1),
-    prevPage: () => hasPrevPage && setPage(currentPage - 1),
+    prevPage: () => hasPrevPage && setPage(currentPage + 1),
   };
 }
 

@@ -11,7 +11,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <HashRouter>
       <Routes>
         <Route path="/welcome" element={<Welcome />} />
-        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/dashboard/:pocketId?" element={<Dashboard />} />
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </HashRouter>

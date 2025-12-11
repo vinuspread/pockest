@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth, usePockets, useItems } from '@/hooks';
 import { usePocketStore } from '@/store/usePocketStore';
@@ -12,10 +13,12 @@ type ViewType = 'all' | 'today' | 'pinned' | 'trash';
 export default function Dashboard() {
   console.log('[Dashboard] 🚀 Component mounting...');
 
+  const { pocketId } = useParams<{ pocketId?: string }>();
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const { user, isAuthenticated, isLoading: authLoading, signIn, signUp, error, clearError } = useAuth();
   const { pockets, selectedPocketId, select: selectPocket } = usePockets();
-  const { items, loading: itemsLoading, togglePin, trash, search, fetchToday, refresh, showPinnedOnly } = useItems();
+  const { items, loading: itemsLoading, togglePin, trash, restore, delete: permanentDelete, search, fetchToday, refresh, showPinnedOnly } = useItems();
   
   const [currentView, setCurrentView] = useState<ViewType>('all');
 
@@ -32,58 +35,85 @@ export default function Dashboard() {
     hasItems: items && items.length > 0
   });
 
-  // 인증 완료 시 초기 데이터 로드
+  // 인증 완료 시 초기 포켓 목록 로드 (한 번만)
   useEffect(() => {
     if (!isAuthenticated) {
       console.log('[Dashboard] ⚠️ Not authenticated, skipping initial data load');
       return;
     }
 
-    console.log('[Dashboard] 🔄 Authenticated! Loading initial data...');
-    const loadInitialData = async () => {
+    console.log('[Dashboard] 🔄 Authenticated! Loading pockets...');
+    const loadPockets = async () => {
       try {
-        await Promise.all([
-          usePocketStore.getState().fetchPockets(),
-          refresh()
-        ]);
-        console.log('[Dashboard] 🎉 Initial data loaded');
+        await usePocketStore.getState().fetchPockets();
+        console.log('[Dashboard] 🎉 Pockets loaded');
       } catch (err) {
-        console.error('[Dashboard] ❌ Error loading initial data:', err);
+        console.error('[Dashboard] ❌ Error loading pockets:', err);
       }
     };
 
-    loadInitialData();
-  }, [isAuthenticated, refresh]);
+    loadPockets();
+  }, [isAuthenticated]); // ✅ 의존성 최소화
 
-  // 뷰 변경 시 데이터 갱신
+  // 통합된 뷰/포켓 로직 - "초기화 후 재요청" 패턴 (상태 오염 방지)
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated) {
+      console.log('[Dashboard] ⚠️ Not authenticated, skipping data load');
+      return;
+    }
 
-    console.log('[Dashboard] View changed:', currentView);
-    
-    // 비동기 함수 호출 시 에러 핸들링
-    const fetchData = async () => {
+    // ✅ pockets가 로드되지 않았으면 대기
+    if (pockets.length === 0 && pocketId) {
+      console.log('[Dashboard] ⏳ Waiting for pockets to load...');
+      return;
+    }
+
+    const loadViewData = async () => {
       try {
-        if (currentView === 'today') {
-          await fetchToday();
-        } else if (currentView === 'pinned') {
-          showPinnedOnly(true);
-        } else if (currentView === 'all') {
-          showPinnedOnly(false); // 핀 필터 해제
-          await refresh();
-        } else if (currentView === 'trash') {
-          // TODO: 휴지통 보기 기능 구현 필요 (현재는 일반 목록과 동일하게 동작할 수 있음)
-          console.warn('Trash view implementation pending');
-          // 임시로 전체 목록 보여주기
-          await refresh();
+        // ✅ 1단계: 뷰 변경 시 먼저 스토어 상태 리셋 (필터 꼬임 방지)
+        console.log('[Dashboard] 🔄 Resetting items state before loading new view');
+        usePocketStore.getState().resetItemsState();
+        
+        // ✅ 2단계: 목적별 독립 함수 호출 (Silo Pattern)
+        // 🚨 각 함수는 완전히 독립적이며 다른 필터를 절대 참조하지 않음
+        
+        // 🔥 우선순위 1: pocketId가 있으면 무조건 포켓 조회 (다른 뷰 무시!)
+        if (pocketId && pockets.length > 0) {
+          console.log('[Dashboard] 📂 [PRIORITY] Calling fetchItemsByPocket():', pocketId);
+          selectPocket(pocketId);
+          await usePocketStore.getState().fetchItemsByPocket(pocketId);
         }
+        // 우선순위 2: 특수 뷰들
+        else if (currentView === 'pinned') {
+          console.log('[Dashboard] ⭐ Calling fetchPinnedItems()');
+          selectPocket(null);
+          await usePocketStore.getState().fetchPinnedItems();
+        } 
+        else if (currentView === 'today') {
+          console.log('[Dashboard] 📅 Calling fetchTodayItems()');
+          selectPocket(null);
+          await usePocketStore.getState().fetchTodayItems();
+        } 
+        else if (currentView === 'trash') {
+          console.log('[Dashboard] 🗑️ Calling fetchTrashItems()');
+          selectPocket(null);
+          await usePocketStore.getState().fetchTrashItems();
+        } 
+        else {
+          // 기본: 전체 보기
+          console.log('[Dashboard] 🏠 Calling fetchAllItems()');
+          selectPocket(null);
+          await usePocketStore.getState().fetchAllItems();
+        }
+        
+        console.log('[Dashboard] ✅ View data loaded successfully');
       } catch (err) {
-        console.error('[Dashboard] Error fetching data for view:', currentView, err);
+        console.error('[Dashboard] ❌ Error loading view data:', err);
       }
     };
 
-    fetchData();
-  }, [currentView, isAuthenticated, fetchToday, refresh, showPinnedOnly]);
+    loadViewData();
+  }, [currentView, pocketId, isAuthenticated, pockets, selectPocket]); // 의존성 배열 최소화
   
   // 로그인 폼 상태
   const [isLoginMode, setIsLoginMode] = useState(true);
@@ -193,6 +223,28 @@ export default function Dashboard() {
     );
   }
 
+  // 포켓 선택 핸들러 (URL 변경)
+  const handleSelectPocket = (pocketId: string | null) => {
+    console.log('[Dashboard] 🎯 handleSelectPocket called:', pocketId);
+    if (pocketId) {
+      // 포켓 선택 시 currentView를 'all'로 리셋 (우선순위 보장)
+      setCurrentView('all');
+      navigate(`/dashboard/${pocketId}`);
+    } else {
+      // 포켓 해제 시 전체 뷰로
+      setCurrentView('all');
+      navigate('/dashboard');
+    }
+  };
+
+  // 뷰 변경 핸들러 (URL 변경)
+  const handleViewChange = (view: ViewType) => {
+    console.log('[Dashboard] 🎯 handleViewChange called:', view);
+    // URL에서 pocketId 제거 (뷰 전환 시)
+    navigate('/dashboard');
+    setCurrentView(view);
+  };
+
   // 인증된 상태 - 대시보드 표시
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -202,23 +254,31 @@ export default function Dashboard() {
         <Sidebar
           pockets={pockets}
           selectedPocketId={selectedPocketId}
-          onSelectPocket={selectPocket}
+          onSelectPocket={handleSelectPocket}
           onCreatePocket={() => {/* TODO: 폴더 생성 모달 */}}
-          currentView={currentView}
-          onViewChange={setCurrentView}
+          currentView={pocketId ? 'pocket' : currentView}
+          onViewChange={handleViewChange}
         />
 
         {/* 메인 컨텐츠 */}
         <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-6xl mx-auto">
-            {/* 페이지 헤더 */}
+            {/* 페이지 헤더 - 포켓 이름 동기화 */}
             <div className="mb-6 flex items-center justify-between">
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">
-                  {currentView === 'all' && t('dashboard.all_items')}
-                  {currentView === 'today' && t('dashboard.today_saved')}
-                  {currentView === 'pinned' && t('dashboard.favorites')}
-                  {currentView === 'trash' && t('dashboard.trash')}
+                  {pocketId ? (
+                    // pocketId가 있으면 포켓 이름 표시
+                    pockets.find(p => p.id === pocketId)?.name || t('dashboard.all_items')
+                  ) : (
+                    // pocketId가 없으면 뷰 타입에 따라 표시
+                    <>
+                      {currentView === 'all' && t('dashboard.all_items')}
+                      {currentView === 'today' && t('dashboard.today_saved')}
+                      {currentView === 'pinned' && t('dashboard.favorites')}
+                      {currentView === 'trash' && t('dashboard.trash')}
+                    </>
+                  )}
                 </h1>
                 <p className="text-gray-500 mt-1">
                   {t('dashboard.total_items', { count: items?.length || 0 })}
@@ -256,23 +316,36 @@ export default function Dashboard() {
                         </div>
                       )}
                       
-                      {/* 오버레이 액션 */}
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-start justify-end p-2 opacity-0 group-hover:opacity-100">
-                        <button
-                          onClick={() => togglePin(item.id)}
-                          className="p-2 bg-white rounded-full shadow-md"
-                        >
-                          <Star className={cn(
-                            'w-4 h-4',
-                            item.is_pinned ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'
-                          )} />
-                        </button>
-                      </div>
+                      {/* 오버레이 액션 - 즐겨찾기 (휴지통에서는 숨김) */}
+                      {currentView !== 'trash' && (
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-start justify-end p-2">
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              togglePin(item.id);
+                            }}
+                            className={cn(
+                              'p-2 bg-white rounded-full shadow-md transition-all',
+                              item.is_pinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                            )}
+                          >
+                            <Star className={cn(
+                              'w-4 h-4',
+                              item.is_pinned ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'
+                            )} />
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     <CardContent className="p-4">
                       <p className="text-xs text-gray-500 mb-1">{item.site_name}</p>
-                      <h3 className="font-medium text-gray-900 text-sm line-clamp-2 mb-2">
+                      {/* 제품명 툴팁 추가 */}
+                      <h3 
+                        className="font-medium text-gray-900 text-sm line-clamp-2 mb-2"
+                        title={item.title}
+                      >
                         {item.title}
                       </h3>
                       {item.price && (
@@ -284,23 +357,62 @@ export default function Dashboard() {
                         {formatRelativeTime(item.created_at)}
                       </p>
 
-                      {/* 액션 버튼 */}
+                      {/* 액션 버튼 - 휴지통 뷰와 일반 뷰 분리 */}
                       <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
-                        <a
-                          href={item.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                        >
-                          <ExternalLink className="w-3 h-3" />
-                          <span>{t('dashboard.visit')}</span>
-                        </a>
-                        <button
-                          onClick={() => trash(item.id)}
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {currentView === 'trash' ? (
+                          // 🗑️ 휴지통 뷰: 복구 + 영구삭제 버튼
+                          <>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (confirm('이 상품을 복구하시겠습니까?')) {
+                                  restore(item.id);
+                                }
+                              }}
+                              className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-xs text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            >
+                              <span>복구</span>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (confirm('⚠️ 이 상품을 영구 삭제하시겠습니까?\n\n삭제된 데이터는 복구할 수 없습니다.')) {
+                                  permanentDelete(item.id);
+                                }
+                              }}
+                              className="px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                              영구삭제
+                            </button>
+                          </>
+                        ) : (
+                          // 📂 일반 뷰: 방문 + 휴지통 이동 버튼
+                          <>
+                            <a
+                              href={item.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              <span>{t('dashboard.visit')}</span>
+                            </a>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (confirm('이 상품을 휴지통으로 이동하시겠습니까?')) {
+                                  trash(item.id);
+                                }
+                              }}
+                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </CardContent>
                   </Card>

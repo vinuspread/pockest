@@ -1,15 +1,16 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { 
-  ShoppingBag, X, Settings, Search, Edit3, Check, Folder, RefreshCw, AlertCircle,
-  ChevronLeft, ChevronRight, Undo2, CheckCircle
+  ShoppingBag, X, Settings, Search, Edit3, Check, RefreshCw, AlertCircle,
+  ChevronLeft, ChevronRight, Undo2, CheckCircle, Edit2
 } from 'lucide-react';
 import { useAuth, usePockets, useItems } from '@/hooks';
 import { useAuthStore } from '@/store/useAuthStore';
 import { usePocketStore } from '@/store/usePocketStore';
 import { supabase } from '@/services/supabase/client';
 import { Toast, useToast } from '@/components/ui';
-import { cn, formatPrice } from '@/utils';
+import { PocketItem } from '@/components/PocketItem';
+import { cn, formatPrice, openDashboard } from '@/utils';
 import type { ProductData } from '@/utils/parser';
 
 type ScrapeStatus = 'idle' | 'scraping' | 'saving' | 'success' | 'error';
@@ -38,6 +39,11 @@ export default function Popup() {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState('');
   const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // 가격 편집 상태
+  const [isEditingPrice, setIsEditingPrice] = useState(false);
+  const [editedPrice, setEditedPrice] = useState('');
+  const priceInputRef = useRef<HTMLInputElement>(null);
 
   // 탭 상태
   const [activeTab, setActiveTab] = useState<TabType>('pocket');
@@ -285,6 +291,67 @@ export default function Popup() {
   };
 
   // ============================================================
+  // 가격 편집 핸들러
+  // ============================================================
+  const handleStartEditPrice = () => {
+    if (productData) {
+      // 현재 가격을 string으로 변환 (콤마 포함)
+      const currentPrice = productData.price 
+        ? productData.price.toLocaleString() 
+        : '';
+      setEditedPrice(currentPrice);
+      setIsEditingPrice(true);
+      setTimeout(() => priceInputRef.current?.focus(), 50);
+    }
+  };
+
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target.value;
+    
+    // 숫자만 추출
+    const numericValue = input.replace(/[^0-9]/g, '');
+    
+    // 빈 값이면 그대로 설정
+    if (numericValue === '') {
+      setEditedPrice('');
+      return;
+    }
+    
+    // 숫자를 콤마 포맷으로 변환
+    const formatted = Number(numericValue).toLocaleString();
+    setEditedPrice(formatted);
+  };
+
+  const handleSavePrice = () => {
+    if (!productData) return;
+
+    // 입력된 문자열에서 숫자만 추출 (콤마, 공백 제거)
+    const numericValue = editedPrice.replace(/[^0-9.]/g, '');
+    const parsedPrice = parseFloat(numericValue);
+
+    if (!isNaN(parsedPrice) && parsedPrice >= 0) {
+      setProductData({
+        ...productData,
+        price: parsedPrice,
+      });
+    }
+    
+    setIsEditingPrice(false);
+  };
+
+  const handlePriceKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSavePrice();
+    } else if (e.key === 'Escape') {
+      setIsEditingPrice(false);
+      if (productData) {
+        setEditedPrice(productData.price ? productData.price.toLocaleString() : '');
+      }
+    }
+  };
+
+  // ============================================================
   // 로그인/회원가입 핸들러
   // ============================================================
   const handleAuthSubmit = async (e: React.FormEvent) => {
@@ -409,11 +476,9 @@ export default function Popup() {
     window.close();
   };
 
-  // 설정 열기
-  const handleOpenSettings = () => {
-    if (typeof chrome !== 'undefined' && chrome.tabs) {
-      chrome.tabs.create({ url: chrome.runtime.getURL('index.html#/dashboard') });
-    }
+  // 대시보드 열기 (탭 재사용)
+  const handleOpenSettings = async () => {
+    await openDashboard();
   };
 
   // ============================================================
@@ -646,11 +711,44 @@ export default function Popup() {
                 </div>
               )}
               
-              {productData.price && (
-                <p className="text-sm font-bold text-gray-900 mt-0.5">
-                  {formatPrice(productData.price, productData.currency)}
-                </p>
-              )}
+              {/* 가격 편집 영역 - 3가지 상태 분기 */}
+              <div className="mt-1">
+                {isEditingPrice ? (
+                  // 1. 수정 모드 (Input 표시 + 실시간 콤마 포맷팅)
+                  <input
+                    ref={priceInputRef}
+                    type="text"
+                    value={editedPrice}
+                    onChange={handlePriceChange}
+                    onBlur={handleSavePrice}
+                    onKeyDown={handlePriceKeyDown}
+                    placeholder="15,000"
+                    className="w-32 border-b-2 border-violet-500 focus:outline-none text-xl font-bold text-gray-900 bg-transparent"
+                    autoFocus
+                  />
+                ) : !productData.price || productData.price === 0 ? (
+                  // 2. 가격 없음 (수동 입력 버튼)
+                  <button
+                    onClick={handleStartEditPrice}
+                    className="text-violet-600 bg-violet-50 hover:bg-violet-100 px-3 py-1 rounded-lg text-xs font-bold transition-colors"
+                  >
+                    💰 가격 직접 입력
+                  </button>
+                ) : (
+                  // 3. 가격 있음 (가격 표시 + 연필 아이콘)
+                  <div className="flex items-center gap-2">
+                    <p className="text-xl font-bold text-gray-900">
+                      {formatPrice(productData.price, productData.currency)}
+                    </p>
+                    <button
+                      onClick={handleStartEditPrice}
+                      className="p-1 hover:bg-violet-50 rounded transition-colors"
+                    >
+                      <Edit2 className="w-4 h-4 text-gray-400 hover:text-violet-500" />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           
@@ -742,64 +840,17 @@ export default function Popup() {
                   {searchQuery ? t('popup.no_search_results') : t('popup.no_folders')}
                 </div>
               ) : (
-                filteredPockets.map((pocket) => {
-                  // ✅ 서버에서 가져온 값 사용 (정확한 카운트 + 썸네일)
-                  const pocketItemCount = pocket.item_count ?? 0;
-                  const thumbnails = pocket.recent_thumbnails ?? [];
-                  const isSelected = selectedPocketId === pocket.id;
-
-                  return (
-                    <div
-                      key={pocket.id}
-                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer transition-colors"
-                      onClick={() => {
-                        selectPocket(pocket.id);
-                        if (productData && !isSaved) {
-                          handleSaveToPocket(pocket.id);
-                        }
-                      }}
-                    >
-                      <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 grid grid-cols-2 grid-rows-2">
-                        {thumbnails.length > 0 ? (
-                          // 4칸 그리드: 썸네일이 있으면 표시, 없으면 빈 칸
-                          [0, 1, 2, 3].map((idx) => (
-                            <div key={idx} className="w-full h-full overflow-hidden">
-                              {thumbnails[idx] ? (
-                                <img src={thumbnails[idx]} alt="" className="w-full h-full object-cover" />
-                              ) : (
-                                <div className="w-full h-full bg-gray-200" />
-                              )}
-                            </div>
-                          ))
-                        ) : (
-                          <div className="col-span-2 row-span-2 flex items-center justify-center">
-                            <Folder className="w-5 h-5 text-gray-300" />
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm text-gray-900 truncate">{pocket.name}</p>
-                        <p className="text-xs text-gray-400">{t('popup.item_count', { count: pocketItemCount })}</p>
-                      </div>
-
-                      {isSelected && status === 'saving' ? (
-                        <div className="animate-spin w-4 h-4 border-2 border-violet-500 border-t-transparent rounded-full" />
-                      ) : productData && !isSaved ? (
-                        <button
-                          className={cn(
-                            'px-3 py-1 text-xs font-medium rounded-full transition-colors',
-                            isSelected
-                              ? 'bg-violet-500 text-white'
-                              : 'bg-gray-100 text-gray-500 hover:bg-violet-100 hover:text-violet-600'
-                          )}
-                        >
-                          {t('popup.save_btn')}
-                        </button>
-                      ) : null}
-                    </div>
-                  );
-                })
+                filteredPockets.map((pocket) => (
+                  <PocketItem
+                    key={pocket.id}
+                    pocket={pocket}
+                    onSave={handleSaveToPocket}
+                    isSelected={selectedPocketId === pocket.id}
+                    isSaving={status === 'saving'}
+                    showSaveButton={productData !== null && !isSaved}
+                    isPopup={true}
+                  />
+                ))
               )}
             </div>
           ) : (
