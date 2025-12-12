@@ -6,10 +6,11 @@ import {
   Folder,
   Trash2,
   Plus,
-  Settings,
+  UserCog,
   ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/utils';
+import { useAuthStore } from '@/store/useAuthStore';
 import type { PocketWithCount } from '@/types';
 
 interface SidebarProps {
@@ -159,11 +160,22 @@ export function Sidebar({
         </div>
       </nav>
 
-      {/* 하단 설정 */}
+      {/* 하단 계정 관리 */}
       <div className="p-4 border-t border-gray-100">
         <NavItem
-          icon={<Settings className="w-5 h-5" />}
-          label="설정"
+          icon={<UserCog className="w-5 h-5" />}
+          label="계정 관리"
+          onClick={async () => {
+            // 1. [핵심] 익스텐션 측 로컬 세션 정보 선제적 삭제 (Stateless 전략)
+            await useAuthStore.getState().signOut();
+            
+            // 2. 웹 대시보드 설정 페이지 열기
+            const dashboardUrl = chrome.runtime.getURL('index.html#/dashboard/settings');
+            chrome.tabs.create({ url: dashboardUrl });
+            
+            // 3. 익스텐션 종료
+            window.close();
+          }}
         />
       </div>
     </aside>

@@ -14,6 +14,7 @@ export function useAuth() {
     initialize,
     signInWithEmail,
     signUpWithEmail,
+    signInWithGoogle,
     signOut,
     clearError,
   } = useAuthStore();
@@ -49,9 +50,10 @@ export function useAuth() {
     // Derived
     isPremium: user?.tier === 'premium',
 
-    // Actions (Email/Password only)
+    // Actions
     signIn: signInWithEmail,
     signUp: signUpWithEmail,
+    signInWithGoogle,
     signOut,
     clearError,
   };

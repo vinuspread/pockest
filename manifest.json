@@ -27,6 +27,7 @@
     }
   ],
   "permissions": [
+    "identity",
     "sidePanel",
     "storage",
     "tabs",

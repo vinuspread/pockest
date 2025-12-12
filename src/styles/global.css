@@ -1,5 +1,5 @@
-/* Inter 폰트 - 글로벌 표준 폰트 */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* Pretendard Variable (가변 폰트) - 한/영 통합, 애플 스타일 */
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css");
 
 @tailwind base;
 @tailwind components;
@@ -11,7 +11,20 @@
   }
 
   html {
-    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    /* Font Stack Strategy:
+      1. Pretendard Variable: 한글 & 영문 최우선 (통일감)
+      2. Pretendard: 가변 폰트 미지원 브라우저용
+      3. Japanese Fallbacks: 일본어 텍스트 처리
+         - Hiragino Kaku Gothic ProN (Mac 표준)
+         - Hiragino Sans (Mac 최신)
+         - Meiryo (Windows 표준)
+      4. System Fallbacks: 그 외 OS 기본 폰트
+    */
+    font-family: "Pretendard Variable", "Pretendard", 
+                 "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Meiryo", 
+                 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 
+                 "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, 
+                 "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }

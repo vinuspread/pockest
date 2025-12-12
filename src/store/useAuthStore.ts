@@ -13,6 +13,7 @@ interface AuthState {
   initialize: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   clearError: () => void;
 }
@@ -174,6 +175,71 @@ export const useAuthStore = create<AuthState>()(
             user: null,
             status: 'unauthenticated',
             error: errorMessage,
+          });
+        }
+      },
+
+      signInWithGoogle: async () => {
+        set({ status: 'loading', error: null });
+        
+        try {
+          const redirectUrl = chrome.identity.getRedirectURL();
+          console.log('Using Redirect URL:', redirectUrl);
+
+          const { data, error } = await supabase.auth.signInWithOAuth({
+            provider: 'google',
+            options: {
+              skipBrowserRedirect: true,
+              redirectTo: redirectUrl,
+            },
+          });
+
+          if (error) throw error;
+          if (!data?.url) throw new Error('No login URL returned');
+
+          const responseUrl = await chrome.identity.launchWebAuthFlow({
+            url: data.url,
+            interactive: true,
+          });
+
+          if (!responseUrl) throw new Error('Login cancelled');
+
+          const urlObj = new URL(responseUrl);
+          
+          // PKCE 방식 (Code가 있는 경우)
+          const code = urlObj.searchParams.get('code');
+          
+          if (code) {
+            console.log('Detected PKCE Code flow');
+            const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+            if (exchangeError) throw exchangeError;
+          } 
+          // Implicit 방식 (Token이 있는 경우)
+          else {
+            console.log('Detected Implicit Token flow');
+            const params = new URLSearchParams(urlObj.hash.substring(1));
+            const access_token = params.get('access_token');
+            const refresh_token = params.get('refresh_token');
+
+            if (!access_token) throw new Error('No access token or code found in URL');
+
+            const { error: sessionError } = await supabase.auth.setSession({
+              access_token,
+              refresh_token: refresh_token || '',
+            });
+            if (sessionError) throw sessionError;
+          }
+          
+          console.log('Login Successful');
+          await get().initialize();
+          
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : '구글 로그인에 실패했습니다.';
+          console.error('Google Login Error:', errorMessage);
+          set({
+            user: null,
+            status: 'unauthenticated',
+            error: `로그인 오류: ${errorMessage}`,
           });
         }
       },

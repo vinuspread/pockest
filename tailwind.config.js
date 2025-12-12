@@ -37,7 +37,17 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        // Pretendard 및 일어 폰트 최우선 배치
+        sans: [
+          'Pretendard Variable',
+          'Pretendard',
+          'Hiragino Kaku Gothic ProN',
+          'Hiragino Sans',
+          'Meiryo',
+          'ui-sans-serif',
+          'system-ui',
+          'sans-serif',
+        ],
       },
       width: {
         'popup': '600px',

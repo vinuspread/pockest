@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth, usePockets, useItems } from '@/hooks';
 import { usePocketStore } from '@/store/usePocketStore';
 import { Header, Sidebar } from '@/components/layout';
-import { Card, CardContent, Button, Input } from '@/components/ui';
+import { Card, CardContent, Button, Input, Tooltip } from '@/components/ui';
 import { Star, Trash2, ExternalLink, Mail, Lock } from 'lucide-react';
 import { cn, formatPrice, formatRelativeTime } from '@/utils';
 
@@ -16,7 +16,7 @@ export default function Dashboard() {
   const { pocketId } = useParams<{ pocketId?: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { user, isAuthenticated, isLoading: authLoading, signIn, signUp, error, clearError } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading, signIn, signUp, signInWithGoogle, error, clearError } = useAuth();
   const { pockets, selectedPocketId, select: selectPocket } = usePockets();
   const { items, loading: itemsLoading, togglePin, trash, restore, delete: permanentDelete, search, fetchToday, refresh, showPinnedOnly } = useItems();
   
@@ -204,6 +204,30 @@ export default function Dashboard() {
                 </Button>
               </form>
 
+              {/* 구분선 */}
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-300"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 text-gray-500 bg-white">또는</span>
+                </div>
+              </div>
+
+              {/* 구글 로그인 버튼 */}
+              <button
+                type="button"
+                onClick={signInWithGoogle}
+                className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all"
+              >
+                <img 
+                  className="w-5 h-5 mr-2" 
+                  src="https://www.svgrepo.com/show/475656/google-color.svg" 
+                  alt="Google" 
+                />
+                Google 계정으로 계속하기
+              </button>
+
               <div className="mt-6 text-center">
                 <button
                   type="button"
@@ -341,13 +365,15 @@ export default function Dashboard() {
 
                     <CardContent className="p-4">
                       <p className="text-xs text-gray-500 mb-1">{item.site_name}</p>
-                      {/* 제품명 툴팁 추가 */}
-                      <h3 
-                        className="font-medium text-gray-900 text-sm line-clamp-2 mb-2"
-                        title={item.title}
-                      >
-                        {item.title}
-                      </h3>
+                      {/* 제품명 - 최대 3줄 말줄임 + 커스텀 툴팁 */}
+                      <Tooltip text={item.title}>
+                        <h3 
+                          className="font-medium text-gray-900 text-sm line-clamp-3 mb-2"
+                          style={{ wordBreak: 'keep-all' }}
+                        >
+                          {item.title}
+                        </h3>
+                      </Tooltip>
                       {item.price && (
                         <p className="font-bold text-primary-600">
                           {formatPrice(item.price, item.currency || 'KRW')}

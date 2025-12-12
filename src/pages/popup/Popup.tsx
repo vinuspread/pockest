@@ -18,7 +18,7 @@ type TabType = 'pocket' | 'today';
 
 export default function Popup() {
   const { t } = useTranslation();
-  const { isAuthenticated, isLoading: authLoading, signIn, signUp, error: authError, clearError } = useAuth();
+  const { isAuthenticated, isLoading: authLoading, signIn, signUp, signInWithGoogle, error: authError, clearError } = useAuth();
   const { pockets, selectedPocketId, select: selectPocket, create: createPocket, refresh: refreshPockets } = usePockets();
   const { items, loading: itemsLoading, add: addItem, refresh: refreshItems, fetchToday } = useItems();
   const pocketsLoading = usePocketStore((state) => state.pocketsLoading);
@@ -552,6 +552,30 @@ export default function Popup() {
               {isSubmitting ? t('auth.processing') : (isLoginMode ? t('auth.login_btn') : t('auth.signup_btn'))}
             </button>
           </form>
+
+          {/* 구분선 */}
+          <div className="relative my-4">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200"></div>
+            </div>
+            <div className="relative flex justify-center text-xs">
+              <span className="px-2 text-gray-400 bg-white">또는</span>
+            </div>
+          </div>
+
+          {/* 구글 로그인 버튼 */}
+          <button
+            type="button"
+            onClick={signInWithGoogle}
+            className="w-full flex items-center justify-center h-11 px-4 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl shadow-sm hover:bg-gray-50 transition-all"
+          >
+            <img 
+              className="w-4 h-4 mr-2" 
+              src="https://www.svgrepo.com/show/475656/google-color.svg" 
+              alt="Google" 
+            />
+            Google 계정으로 계속하기
+          </button>
 
           <button
             type="button"

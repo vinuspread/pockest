@@ -3,5 +3,6 @@ export * from './Card';
 export * from './Input';
 export * from './ItemCard';
 export * from './Toast';
+export * from './Tooltip';
 
 

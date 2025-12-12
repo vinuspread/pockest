@@ -31,10 +31,8 @@ if (manifest.action) {
 }
 
 // 2. permissions 재정렬 (sidePanel을 맨 앞에)
-const requiredPermissions = ['sidePanel', 'storage', 'tabs', 'scripting', 'activeTab'];
-manifest.permissions = requiredPermissions.filter(p => 
-  manifest.permissions?.includes(p) || p === 'sidePanel'
-);
+const requiredPermissions = ['identity', 'sidePanel', 'storage', 'tabs', 'scripting', 'activeTab'];
+manifest.permissions = requiredPermissions;
 console.log('  ✓ Permissions set:', manifest.permissions.join(', '));
 
 // 3. side_panel 설정 강제 추가
