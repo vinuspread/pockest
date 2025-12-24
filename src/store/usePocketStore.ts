@@ -77,7 +77,7 @@ export const usePocketStore = create<PocketState>((set, get) => ({
     try {
       const { data, error } = await supabase
         .from('pockets')
-        .select('*, items(id, image_url, created_at)')
+        .select('*, items(id, image_url, created_at, deleted_at)')
         .eq('user_id', user.id)
         .order('is_default', { ascending: false })
         .order('created_at', { ascending: true });
@@ -85,8 +85,12 @@ export const usePocketStore = create<PocketState>((set, get) => ({
       if (error) throw error;
 
       const mappedPockets: PocketWithCount[] = (data || []).map((pocket: any) => {
-        const items = pocket.items || [];
-        const recentThumbnails = items
+        const allItems = pocket.items || [];
+        
+        // 🔥 FIX: deleted_at이 null인 아이템만 필터링
+        const activeItems = allItems.filter((i: any) => i.deleted_at === null);
+        
+        const recentThumbnails = activeItems
           .filter((i: any) => i.image_url)
           .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
           .slice(0, 4)
@@ -96,7 +100,7 @@ export const usePocketStore = create<PocketState>((set, get) => ({
         const { items: _, ...rest } = pocket;
         return {
           ...rest,
-          item_count: items.length,
+          item_count: activeItems.length, // 🔥 FIX: 활성 아이템만 카운트
           recent_thumbnails: recentThumbnails,
         };
       });
