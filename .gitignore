@@ -53,3 +53,6 @@ temp/
 .cache/
 .eslintcache
 .stylelintcache
+
+# Sensitive files (OAuth credentials)
+구글로그인인증ID.txt
