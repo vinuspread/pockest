@@ -695,6 +695,36 @@ const handleBuyClick = () => {
   - [ ] Include RPC functions (get_today_items, etc.)
 
 ### Priority 2: High (Post-Launch v1.1)
+- [ ] **Fix Google OAuth Login Flash Error** (UX Improvement)
+  - **Issue:** Brief error message appears during login before success
+  - **Impact:** User sees error flash but login succeeds anyway
+  - **Root Cause:** OAuth redirect process has temporary session check failure
+  - **Solution:** Add error suppression during redirect flow OR improve retry logic
+  - **Priority:** Medium (functional but poor UX)
+  - **File:** `src/store/useAuthStore.ts:182-245`
+
+- [ ] **UI/UX Redesign** (Figma → Builder.io → React)
+  - **Scope:** Extension Sidebar + Dashboard
+  - **Design Tool:** Figma (user will design)
+  - **Export Tool:** Builder.io
+  - **Format:** React + TypeScript (Tailwind CSS)
+  - **Integration Steps:**
+    1. Figma design completion
+    2. Builder.io export to React components
+    3. Replace existing components in `src/components/`
+    4. Reconnect state management (Zustand hooks)
+    5. Add i18n support (useTranslation)
+    6. Test responsive behavior
+  - **Files to Replace:**
+    - `src/components/layout/Sidebar.tsx`
+    - `src/components/layout/Header.tsx`
+    - `src/components/ui/*.tsx`
+    - `src/pages/popup/Popup.tsx` (partial)
+  - **Keep Unchanged:**
+    - Business logic (`src/store/`, `src/hooks/`)
+    - Types (`src/types/`)
+    - Utils (`src/utils/`)
+
 - [ ] **Client-Side Image Resize & Upload**
   - [ ] Implement: Canvas API resize to 200px width
   - [ ] Compress: JPEG 60% quality
@@ -738,6 +768,15 @@ const handleBuyClick = () => {
 ---
 
 ## 7. Technical Debt
+
+### Recently Fixed ✅
+- ✅ **Pocket Item Count Bug** (Fixed: 2024-12-24)
+  - **Issue:** Sidebar showed incorrect item count (included soft-deleted items)
+  - **Example:** "Axe" folder displayed 5 items when all were deleted
+  - **Root Cause:** `fetchPockets()` query did not filter `deleted_at != null`
+  - **Solution:** Client-side filtering to count only active items
+  - **File:** `src/store/usePocketStore.ts:71-108`
+  - **Commit:** `546f66e`
 
 ### Code Quality
 - ⚠️ **Settings Page:** Hardcoded Korean text (not i18n-ready)
