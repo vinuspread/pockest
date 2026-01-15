@@ -7,13 +7,16 @@
     "dev": "vite",
     "dev:extension": "vite build --watch --mode development",
     "build": "tsc && vite build && node scripts/fix-manifest.js",
+    "build:web": "tsc && vite build --config vite.web.config.ts",
     "build:extension": "vite build --mode production && node scripts/fix-manifest.js",
     "preview": "vite preview",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.46.1",
+    "blurhash": "^2.0.5",
     "clsx": "^2.1.1",
+    "html2canvas": "^1.4.1",
     "i18next": "^25.7.2",
     "i18next-browser-languagedetector": "^8.2.0",
     "lucide-react": "^0.460.0",

@@ -10,6 +10,12 @@ export interface User {
   id: string;
   email: string;
   tier: 'free' | 'premium';
+  affiliate_agreed?: boolean;
+  user_metadata?: {
+    avatar_url?: string;
+    full_name?: string;
+    [key: string]: any;
+  };
 }
 
 // 상품 저장 요청 (Content Script -> Popup)

@@ -19,6 +19,7 @@ export type Database = {
           id: string;
           email: string;
           tier: 'free' | 'premium';
+          affiliate_agreed?: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -26,6 +27,7 @@ export type Database = {
           id: string;
           email: string;
           tier?: 'free' | 'premium';
+          affiliate_agreed?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -33,6 +35,7 @@ export type Database = {
           id?: string;
           email?: string;
           tier?: 'free' | 'premium';
+          affiliate_agreed?: boolean;
           created_at?: string;
           updated_at?: string;
         };
@@ -46,6 +49,7 @@ export type Database = {
           is_default: boolean;
           created_at: string;
           updated_at: string;
+          deleted_at: string | null;
         };
         Insert: {
           id?: string;
@@ -54,6 +58,7 @@ export type Database = {
           is_default?: boolean;
           created_at?: string;
           updated_at?: string;
+          deleted_at?: string | null;
         };
         Update: {
           id?: string;
@@ -62,6 +67,7 @@ export type Database = {
           is_default?: boolean;
           created_at?: string;
           updated_at?: string;
+          deleted_at?: string | null;
         };
         Relationships: [
           {
@@ -86,6 +92,8 @@ export type Database = {
           currency: string | null;
           is_pinned: boolean;
           memo: string | null;
+
+          blurhash?: string | null;
           created_at: string;
           updated_at: string;
           deleted_at: string | null;
@@ -105,6 +113,7 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           deleted_at?: string | null;
+          blurhash?: string | null;
         };
         Update: {
           id?: string;
@@ -121,6 +130,7 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
           deleted_at?: string | null;
+          blurhash?: string | null;
         };
         Relationships: [
           {

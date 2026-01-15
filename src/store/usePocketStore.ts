@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { supabase } from '@/services/supabase/client';
 import { useAuthStore } from './useAuthStore';
 import type { PocketWithCount, Item, ItemFilters } from '@/types';
-import type { PocketInsert, ItemInsert, ItemUpdate } from '@/types/database';
+// import type { PocketInsert, ItemInsert, ItemUpdate } from '@/types/database';
 
 interface PocketState {
   // Pockets
@@ -73,23 +73,23 @@ export const usePocketStore = create<PocketState>((set, get) => ({
     if (!user) return;
 
     set({ pocketsLoading: true, pocketsError: null });
-    
+
     try {
       const { data, error } = await supabase
         .from('pockets')
         .select('*, items(id, image_url, created_at, deleted_at)')
         .eq('user_id', user.id)
+        .is('deleted_at', null) // 🔥 Soft Delete된 포켓 제외
         .order('is_default', { ascending: false })
         .order('created_at', { ascending: true });
 
       if (error) throw error;
 
       const mappedPockets: PocketWithCount[] = (data || []).map((pocket: any) => {
-        const allItems = pocket.items || [];
-        
-        // 🔥 FIX: deleted_at이 null인 아이템만 필터링
-        const activeItems = allItems.filter((i: any) => i.deleted_at === null);
-        
+        const rawItems = pocket.items || [];
+        // 🔥 Filter out deleted items for correct count and thumbnails
+        const activeItems = rawItems.filter((i: any) => !i.deleted_at);
+
         const recentThumbnails = activeItems
           .filter((i: any) => i.image_url)
           .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -100,7 +100,7 @@ export const usePocketStore = create<PocketState>((set, get) => ({
         const { items: _, ...rest } = pocket;
         return {
           ...rest,
-          item_count: activeItems.length, // 🔥 FIX: 활성 아이템만 카운트
+          item_count: activeItems.length,
           recent_thumbnails: recentThumbnails,
         };
       });
@@ -139,11 +139,39 @@ export const usePocketStore = create<PocketState>((set, get) => ({
   },
 
   deletePocket: async (id) => {
-    await supabase.from('pockets').delete().eq('id', id);
+    // 1. Optimistic Update
     set((state) => ({
       pockets: state.pockets.filter((p) => p.id !== id),
       selectedPocketId: state.selectedPocketId === id ? null : state.selectedPocketId
     }));
+
+    try {
+      const now = new Date().toISOString();
+
+      // 2. [Cascade] 해당 포켓의 모든 아이템도 Soft Delete (휴지통으로 이동)
+      await supabase
+        .from('items')
+        .update({ deleted_at: now })
+        .eq('pocket_id', id)
+        .is('deleted_at', null); // 이미 삭제된 건 건드리지 않음
+
+      // 3. 포켓 Soft Delete
+      const { error } = await supabase
+        .from('pockets')
+        .update({ deleted_at: now })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      console.log('[deletePocket] ✅ Soft deleted pocket and its items:', id);
+
+      // 🔥 [Sync] Ensure state is synchronized with server truth
+      await get().fetchPockets();
+    } catch (error) {
+      console.error('[deletePocket] ❌ Failed:', error);
+      // 롤백 로직이 복잡하므로 여기선 새로고침 유도 에러 메시지
+      set({ pocketsError: '폴더 삭제 실패. 새로고침 해주세요.' });
+    }
   },
 
   selectPocket: (id) => set({ selectedPocketId: id, currentPage: 1 }),
@@ -151,7 +179,7 @@ export const usePocketStore = create<PocketState>((set, get) => ({
   // ==========================================
   // 2. ITEM FETCH ACTIONS (SILO PATTERN)
   // ==========================================
-  
+
   // A. 특정 포켓 조회 (절대 즐겨찾기 필터 안 봄)
   fetchItemsByPocket: async (pocketId) => {
     const { user } = useAuthStore.getState();
@@ -307,7 +335,7 @@ export const usePocketStore = create<PocketState>((set, get) => ({
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      
+
       set({ items: data as Item[], itemsTotal: count || 0, itemsLoading: false });
       console.log('[searchItems] ✅ Found', data?.length || 0, 'items');
     } catch (error: any) {
@@ -324,20 +352,46 @@ export const usePocketStore = create<PocketState>((set, get) => ({
     if (!user) return null;
 
     try {
-      const { data, error } = await supabase
-        .from('items')
-        .insert({ ...item, user_id: user.id })
-        .select()
-        .single();
+      let data, error;
+
+      // 1차 시도: 모든 필드 포함 (blurhash 포함)
+      try {
+        const result = await supabase
+          .from('items')
+          .insert({ ...item, user_id: user.id })
+          .select()
+          .single();
+        data = result.data;
+        error = result.error;
+      } catch (err) {
+        // Supabase 클라이언트단 예외 발생 시
+        error = err;
+      }
+
+      // 2차 시도: blurhash 컬럼이 없어서 실패한 경우, 제외하고 재시도
+      if (error && ((error as any).message?.includes('blurhash') || (error as any).details?.includes('blurhash') || (error as any).code === 'PGRST204')) {
+        console.warn('[addItem] ⚠️ blurhash column missing, retrying without it...');
+        const { blurhash, ...itemWithoutBlurhash } = item;
+
+        const result = await supabase
+          .from('items')
+          .insert({ ...itemWithoutBlurhash, user_id: user.id })
+          .select()
+          .single();
+        data = result.data;
+        error = result.error;
+      }
+
+      if (error) throw error;
 
       if (error) throw error;
 
       console.log('[addItem] ✅ Item added successfully');
-      
+
       // 🔥 [New] 사이드바 포켓 카운트 실시간 증가 (+1)
       const addedItem = data as Item;
       const targetPocketId = addedItem.pocket_id;
-      
+
       if (targetPocketId) {
         set((state) => ({
           pockets: state.pockets.map((pocket) => {
@@ -349,11 +403,20 @@ export const usePocketStore = create<PocketState>((set, get) => ({
             return pocket;
           })
         }));
+
+        // 🔥 [New] 현재 보고 있는 폴더가 추가된 아이템의 폴더와 같으면 자동 새로고침
+        const currentState = get();
+        if (currentState.selectedPocketId === targetPocketId) {
+          console.log('[addItem] 🔄 Auto-refreshing current pocket view:', targetPocketId);
+          await get().fetchItemsByPocket(targetPocketId);
+        }
       }
-      
+
       return addedItem;
-    } catch (error) {
+    } catch (error: any) {
       console.error('[addItem] ❌ Failed:', error);
+      // For debugging only: show specific error
+      alert(`Save Failed: ${error.message || JSON.stringify(error)}`);
       return null;
     }
   },
@@ -379,7 +442,7 @@ export const usePocketStore = create<PocketState>((set, get) => ({
     // ✅ [Step 2] Optimistic Update: UI에서 즉시 제거 + 사이드바 카운트 동기화
     set((state) => ({
       items: state.items.filter((item) => item.id !== id),
-      
+
       // 🔥 [New] 사이드바 포켓 카운트 실시간 감소 (-1)
       pockets: state.pockets.map((pocket) => {
         if (pocket.id === targetPocketId && pocket.item_count !== undefined) {
@@ -394,7 +457,7 @@ export const usePocketStore = create<PocketState>((set, get) => ({
     try {
       const { error } = await supabase
         .from('items')
-        .update({ 
+        .update({
           deleted_at: new Date().toISOString(),
           is_pinned: false // 휴지통 이동 시 즐겨찾기 해제
         })
@@ -402,12 +465,12 @@ export const usePocketStore = create<PocketState>((set, get) => ({
         .eq('user_id', user.id); // 보안: 본인 아이템만
 
       if (error) throw error;
-      
+
       console.log('[moveToTrash] ✅ Success (Network-free count sync)');
     } catch (error: any) {
       console.error('[moveToTrash] ❌ Failed:', error);
       set({ itemsError: '휴지통 이동 실패' });
-      
+
       // TODO: 실패 시 아이템 복원 + 카운트 롤백
     }
   },
@@ -423,36 +486,51 @@ export const usePocketStore = create<PocketState>((set, get) => ({
 
     console.log('[restoreFromTrash] 🔄 Restoring (Silent):', id, '| Pocket:', targetPocketId);
 
-    // ✅ [Step 2] Optimistic Update: 휴지통 뷰에서 즉시 제거 + 사이드바 카운트 동기화
-    set((state) => ({
-      items: state.items.filter((item) => item.id !== id),
-      
-      // 🔥 [New] 사이드바 포켓 카운트 실시간 증가 (+1)
-      pockets: state.pockets.map((pocket) => {
-        if (pocket.id === targetPocketId && pocket.item_count !== undefined) {
-          const newCount = pocket.item_count + 1;
-          console.log('[restoreFromTrash] 📊 Count sync:', pocket.name, pocket.item_count, '→', newCount);
-          return { ...pocket, item_count: newCount };
-        }
-        return pocket;
-      })
-    }));
-
     try {
+      // 🔥 [Check] 부모 포켓이 삭제된 상태인지 확인
+      if (targetPocketId) {
+        const { data: pocket } = await supabase
+          .from('pockets')
+          .select('deleted_at')
+          .eq('id', targetPocketId)
+          .single();
+
+        if (pocket?.deleted_at) {
+          console.log('[restoreFromTrash] 🏗️ Parent pocket is deleted. Restoring pocket...', targetPocketId);
+          await supabase
+            .from('pockets')
+            .update({ deleted_at: null })
+            .eq('id', targetPocketId);
+
+          // 포켓 목록 갱신 필요 (복구된 포켓 보여주기 위해)
+          await get().fetchPockets();
+        }
+      }
+
+      // items 업데이트: deleted_at 제거
       const { error } = await supabase
         .from('items')
-        .update({ deleted_at: null }) // deleted_at을 NULL로 초기화
+        .update({ deleted_at: null })
         .eq('id', id)
-        .eq('user_id', user.id); // 보안: 본인 아이템만
+        .eq('user_id', user.id);
 
       if (error) throw error;
-      
-      console.log('[restoreFromTrash] ✅ Success (Network-free count sync)');
+
+      // ✅ Optimistic UI Update (이미 목록을 다시 불러왔을 수도 있지만 안전하게)
+      set((state) => ({
+        items: state.items.filter((item) => item.id !== id),
+        pockets: state.pockets.map((pocket) => {
+          if (pocket.id === targetPocketId && pocket.item_count !== undefined) {
+            return { ...pocket, item_count: pocket.item_count + 1 };
+          }
+          return pocket;
+        })
+      }));
+
+      console.log('[restoreFromTrash] ✅ Success');
     } catch (error: any) {
       console.error('[restoreFromTrash] ❌ Failed:', error);
       set({ itemsError: '복구 실패' });
-      
-      // TODO: 실패 시 아이템 복원 + 카운트 롤백
     }
   },
 
@@ -476,7 +554,7 @@ export const usePocketStore = create<PocketState>((set, get) => ({
         .eq('user_id', user.id); // 보안: 본인 아이템만
 
       if (error) throw error;
-      
+
       console.log('[permanentDelete] ✅ Success - Gone forever');
     } catch (error: any) {
       console.error('[permanentDelete] ❌ Failed:', error);
@@ -495,32 +573,32 @@ export const usePocketStore = create<PocketState>((set, get) => ({
       console.warn('[togglePin] ⚠️ Item not found:', id);
       return;
     }
-    
+
     const newStatus = !item.is_pinned;
     const oldStatus = item.is_pinned;
-    
+
     // 현재 뷰 감지: 즐겨찾기 뷰인지 확인
-    const isPinnedView = window.location.hash.includes('/dashboard') && 
-                         !window.location.hash.match(/\/dashboard\/[^/]+$/); // pocketId가 없음
+    // const isPinnedView = ...
+    !window.location.hash.match(/\/dashboard\/[^/]+$/); // pocketId가 없음
     const currentUrl = window.location.hash;
-    const isInPinnedView = currentUrl.includes('#/dashboard') && 
-                          (currentUrl === '#/dashboard' || currentUrl === '#/dashboard/');
-    
+    const isInPinnedView = currentUrl.includes('#/dashboard') &&
+      (currentUrl === '#/dashboard' || currentUrl === '#/dashboard/');
+
     console.log('[togglePin] ⭐ Toggling pin (Zero-Latency):', id, oldStatus, '→', newStatus);
     console.log('[togglePin] 📍 Current view check:', { currentUrl, isInPinnedView });
-    
+
     // ✅ [Step 1] Optimistic Update: 즉시 반영 (Zero-Latency!)
     set((state) => {
       // 🔥 특수 케이스: 즐겨찾기 뷰에서 핀 해제 → 리스트에서 즉시 제거
       // (사용자가 현재 "즐겨찾기만 모아보기" 상태에서 핀을 해제하면
       //  해당 아이템은 더 이상 이 뷰에 속하지 않으므로 사라져야 함)
-      
+
       // selectedPocketId가 null이고, URL이 /dashboard인 경우 → 전체 뷰 또는 특수 뷰
       // 이 경우 추가 로직으로 현재 뷰를 확인해야 함
       // 간단하게: items 배열이 모두 is_pinned=true라면 즐겨찾기 뷰로 추정
       const allItemsPinned = state.items.every(i => i.is_pinned);
       const likelyPinnedView = state.selectedPocketId === null && allItemsPinned;
-      
+
       if (likelyPinnedView && !newStatus) {
         // 즐겨찾기 뷰에서 핀 해제 → 리스트에서 제거
         console.log('[togglePin] 🗑️ Removing from pinned view');
@@ -544,29 +622,29 @@ export const usePocketStore = create<PocketState>((set, get) => ({
         .eq('user_id', user.id); // 보안: 본인 아이템만
 
       if (error) throw error;
-      
+
       console.log('[togglePin] ✅ Success (Zero-Latency)');
     } catch (error: any) {
       console.error('[togglePin] ❌ Failed, rolling back...', error);
-      
+
       // ✅ [Step 3] Rollback: 실패 시 원래 상태로 복구
       set((state) => {
         // 즐겨찾기 뷰에서 제거했던 경우 → 다시 추가
         const wasRemoved = !state.items.find((i) => i.id === id);
-        
+
         if (wasRemoved && item) {
           console.log('[togglePin] 🔄 Restoring removed item');
           return {
             items: [...state.items, { ...item, is_pinned: oldStatus }]
           };
         }
-        
+
         // 일반 케이스: 상태만 되돌림
         return {
           items: state.items.map((i) => i.id === id ? { ...i, is_pinned: oldStatus } : i)
         };
       });
-      
+
       set({ itemsError: '즐겨찾기 설정 실패' });
     }
   },

@@ -56,5 +56,6 @@ export function useAuth() {
     signInWithGoogle,
     signOut,
     clearError,
+    initialize,
   };
 }

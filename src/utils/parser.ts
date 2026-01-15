@@ -105,16 +105,16 @@ function getMetaContent(doc: Document, selectors: string[]): string {
  */
 function parseJsonLd(doc: Document): JsonLdProduct | null {
   const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
-  
+
   for (const script of scripts) {
     try {
       const data = JSON.parse(script.textContent || '');
-      
+
       // 단일 객체인 경우
       if (data['@type'] === 'Product') {
         return data as JsonLdProduct;
       }
-      
+
       // @graph 배열인 경우
       if (data['@graph'] && Array.isArray(data['@graph'])) {
         const product = data['@graph'].find(
@@ -122,7 +122,7 @@ function parseJsonLd(doc: Document): JsonLdProduct | null {
         );
         if (product) return product as JsonLdProduct;
       }
-      
+
       // 배열인 경우
       if (Array.isArray(data)) {
         const product = data.find(
@@ -134,7 +134,7 @@ function parseJsonLd(doc: Document): JsonLdProduct | null {
       continue;
     }
   }
-  
+
   return null;
 }
 
@@ -147,21 +147,21 @@ function parseJsonLd(doc: Document): JsonLdProduct | null {
  */
 function isValidProductImage(src: string): boolean {
   if (!src || src.startsWith('data:')) return false;
-  
+
   const srcLower = src.toLowerCase();
-  
+
   // 제외 키워드 체크
   for (const keyword of EXCLUDED_IMAGE_KEYWORDS) {
     if (srcLower.includes(keyword)) {
       return false;
     }
   }
-  
+
   // 확장자 체크 (gif 제외 - 대부분 아이콘)
   if (srcLower.endsWith('.gif') || srcLower.endsWith('.svg')) {
     return false;
   }
-  
+
   return true;
 }
 
@@ -169,15 +169,15 @@ function isValidProductImage(src: string): boolean {
  * 이미지 URL에서 실제 소스 추출 (Lazy Loading 대응)
  */
 function extractImageSrc(img: HTMLImageElement): string {
-  return img.src || 
-         img.getAttribute('data-src') || 
-         img.getAttribute('data-original') ||
-         img.getAttribute('data-lazy-src') ||
-         img.getAttribute('data-image') ||
-         img.getAttribute('data-lazy') ||
-         img.getAttribute('data-zoom-image') ||
-         img.getAttribute('data-large-image') ||
-         '';
+  return img.src ||
+    img.getAttribute('data-src') ||
+    img.getAttribute('data-original') ||
+    img.getAttribute('data-lazy-src') ||
+    img.getAttribute('data-image') ||
+    img.getAttribute('data-lazy') ||
+    img.getAttribute('data-zoom-image') ||
+    img.getAttribute('data-large-image') ||
+    '';
 }
 
 /**
@@ -185,14 +185,14 @@ function extractImageSrc(img: HTMLImageElement): string {
  */
 function getMallSpecificImages(doc: Document, hostname: string): string[] {
   const images: string[] = [];
-  
+
   // 매칭되는 쇼핑몰 선택자 찾기
   for (const [mall, selectors] of Object.entries(MALL_IMAGE_SELECTORS)) {
     if (hostname.includes(mall)) {
       for (const selector of selectors) {
         const elements = doc.querySelectorAll(selector);
         elements.forEach((el) => {
-          const src = el instanceof HTMLImageElement 
+          const src = el instanceof HTMLImageElement
             ? extractImageSrc(el)
             : el.getAttribute('src') || '';
           if (isValidProductImage(src)) {
@@ -203,7 +203,7 @@ function getMallSpecificImages(doc: Document, hostname: string): string[] {
       break;
     }
   }
-  
+
   return [...new Set(images)]; // 중복 제거
 }
 
@@ -222,7 +222,7 @@ function findLargeImages(doc: Document): string[] {
     // 크기 확인 (자연 크기 또는 속성값)
     const width = img.naturalWidth || parseInt(img.getAttribute('width') || '0', 10);
     const height = img.naturalHeight || parseInt(img.getAttribute('height') || '0', 10);
-    
+
     // 최소 크기 체크
     if (width >= MIN_SIZE || height >= MIN_SIZE) {
       // 비율 체크 (너무 가로로 긴 이미지는 배너일 가능성)
@@ -254,7 +254,7 @@ export function getProductImages(doc: Document): string[] {
     getMetaContent(doc, ['meta[property="og:image:url"]']),
     getMetaContent(doc, ['meta[property="og:image:secure_url"]']),
   ].filter(Boolean);
-  
+
   ogImages.forEach((img) => {
     const resolved = resolveUrl(img, doc);
     if (isValidProductImage(resolved)) {
@@ -359,14 +359,14 @@ export function getProductTitle(doc: Document): string {
  */
 function cleanTitle(title: string): string {
   const separators = [' | ', ' - ', ' :: ', ' » ', ' — ', ' · '];
-  
+
   for (const sep of separators) {
     if (title.includes(sep)) {
       const parts = title.split(sep);
       return parts.reduce((a, b) => a.length >= b.length ? a : b).trim();
     }
   }
-  
+
   return title.trim();
 }
 
@@ -410,8 +410,33 @@ function formatHostname(hostname: string): string {
 /**
  * 상품 가격 추출
  */
+/**
+ * 상품 가격 추출
+ */
 export function getProductPrice(doc: Document): { price: number | null; currency: string } {
-  // 1순위: 메타 태그 가격
+  // 1순위: 네이버 쇼핑/스마트스토어 특화 (가장 정확함)
+  const naverPriceSelectors = [
+    // 스마트스토어 신규/구버전
+    '._price_number',
+    '.lowestPrice_num__3AlQ-', // 네이버 쇼핑 가격비교
+    '.lowestPrice_price__Yw0DX', // 네이버 쇼핑
+    '.product_price .price',
+    '.price_area .price',
+    'span[class*="price_num"]',
+    'strong[class*="price_real"]'
+  ];
+
+  for (const selector of naverPriceSelectors) {
+    const el = doc.querySelector(selector);
+    if (el && el.textContent) {
+      const price = parsePrice(el.textContent);
+      if (price !== null && price > 0) {
+        return { price, currency: 'KRW' };
+      }
+    }
+  }
+
+  // 2순위: 메타 태그 가격
   const metaPrice = getMetaContent(doc, [
     'meta[property="product:price:amount"]',
     'meta[property="og:price:amount"]',
@@ -428,7 +453,7 @@ export function getProductPrice(doc: Document): { price: number | null; currency
     }
   }
 
-  // 2순위: JSON-LD 가격
+  // 3순위: JSON-LD 가격
   const jsonLd = parseJsonLd(doc);
   if (jsonLd?.offers) {
     const offers = Array.isArray(jsonLd.offers) ? jsonLd.offers[0] : jsonLd.offers;
@@ -440,7 +465,7 @@ export function getProductPrice(doc: Document): { price: number | null; currency
     }
   }
 
-  // 3순위: 본문에서 가격 텍스트 파싱
+  // 4순위: 본문에서 가격 텍스트 파싱
   return findPriceInDOM(doc);
 }
 
@@ -450,7 +475,7 @@ export function getProductPrice(doc: Document): { price: number | null; currency
 function parsePrice(priceStr: string): number | null {
   const cleaned = priceStr.replace(/[^0-9.]/g, '');
   const price = parseFloat(cleaned);
-  
+
   return isNaN(price) ? null : Math.round(price);
 }
 
@@ -488,7 +513,7 @@ function findPriceInDOM(doc: Document): { price: number | null; currency: string
       const text = el.textContent || '';
       const style = window.getComputedStyle(el);
       const fontSize = parseFloat(style.fontSize) || 0;
-      
+
       for (const pattern of pricePatterns) {
         if (pattern.regex.test(text)) {
           priceElements.push({ element: el, fontSize, text });
@@ -524,15 +549,15 @@ function findPriceInDOM(doc: Document): { price: number | null; currency: string
  */
 function resolveUrl(url: string, doc: Document): string {
   if (!url) return '';
-  
+
   if (url.startsWith('http://') || url.startsWith('https://')) {
     return url;
   }
-  
+
   if (url.startsWith('//')) {
     return `https:${url}`;
   }
-  
+
   try {
     const base = doc.baseURI || doc.location?.href || '';
     return new URL(url, base).href;

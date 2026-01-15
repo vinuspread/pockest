@@ -1,130 +1,78 @@
 import { useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
-import { ShoppingBag, Pin, PanelRight, ArrowRight, Sparkles, Globe } from 'lucide-react';
-import { supportedLanguages, languageNames, changeLanguage, getCurrentLanguage, type SupportedLanguage } from '../../i18n';
+import { Card, CardContent, Button } from '@/components/ui';
+import { ArrowRight, ShoppingBag } from 'lucide-react';
 
 export default function Welcome() {
-  const navigate = useNavigate();
-  const { t } = useTranslation();
-  const currentLang = getCurrentLanguage();
+    const navigate = useNavigate();
 
-  const handleGetStarted = () => {
-    // 대시보드로 이동 (로그인 필요 시 자동으로 로그인 화면 표시)
-    navigate('/dashboard');
-  };
+    const handleStart = () => {
+        navigate('/');
+    };
 
-  const handleLanguageChange = (lng: SupportedLanguage) => {
-    changeLanguage(lng);
-  };
+    return (
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+            <Card className="max-w-md w-full shadow-xl border-0 overflow-hidden">
+                <div className="bg-primary-600 p-8 text-center">
+                    <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-6">
+                        <ShoppingBag className="w-8 h-8 text-white" />
+                    </div>
+                    <h1 className="text-2xl font-bold text-white mb-2">Pockest 시작하기</h1>
+                    <p className="text-primary-100 text-sm">
+                        더 똑똑한 쇼핑을 위한 당신만의 포켓
+                    </p>
+                </div>
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-50 via-white to-purple-50 flex items-center justify-center p-6 relative">
-      {/* 언어 선택기 */}
-      <div className="absolute top-4 right-4 flex items-center gap-2">
-        <Globe className="w-4 h-4 text-gray-400" />
-        <select
-          value={currentLang}
-          onChange={(e) => handleLanguageChange(e.target.value as SupportedLanguage)}
-          className="bg-white border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 cursor-pointer"
-        >
-          {supportedLanguages.map((lng) => (
-            <option key={lng} value={lng}>
-              {languageNames[lng]}
-            </option>
-          ))}
-        </select>
-      </div>
+                <CardContent className="p-8 space-y-8">
+                    {/* Step 1 */}
+                    <div className="flex gap-4">
+                        <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
+                            <span className="text-primary-600 font-bold">1</span>
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-gray-900 mb-1">상품 담기</h3>
+                            <p className="text-sm text-gray-500 leading-relaxed">
+                                쇼핑몰에서 사고 싶은 상품을 발견하면<br />
+                                Pockest 버튼을 눌러 바로 저장하세요.
+                            </p>
+                        </div>
+                    </div>
 
-      <div className="max-w-4xl w-full">
-        {/* 헤더 */}
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 mb-6 shadow-lg shadow-violet-200">
-            <ShoppingBag className="w-10 h-10 text-white" />
-          </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4 flex items-center justify-center gap-3 flex-wrap">
-            {t('welcome.title')}
-            <Sparkles className="w-8 h-8 text-violet-500" />
-          </h1>
-          <p className="text-lg text-gray-600">
-            {t('welcome.subtitle')}
-          </p>
+                    {/* Step 2 */}
+                    <div className="flex gap-4">
+                        <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
+                            <span className="text-primary-600 font-bold">2</span>
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-gray-900 mb-1">가격 추적</h3>
+                            <p className="text-sm text-gray-500 leading-relaxed">
+                                저장한 상품의 가격 변동을<br />
+                                실시간으로 감지하고 알려드립니다.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Step 3 */}
+                    <div className="flex gap-4">
+                        <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
+                            <span className="text-primary-600 font-bold">3</span>
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-gray-900 mb-1">폴더 관리</h3>
+                            <p className="text-sm text-gray-500 leading-relaxed">
+                                나만의 폴더를 만들어<br />
+                                위시리스트를 깔끔하게 정리하세요.
+                            </p>
+                        </div>
+                    </div>
+
+                    <Button
+                        onClick={handleStart}
+                        className="w-full h-12 text-lg font-bold bg-primary-600 hover:bg-primary-700 shadow-lg shadow-primary-200 transition-all gap-2"
+                    >
+                        시작하기 <ArrowRight className="w-5 h-5" />
+                    </Button>
+                </CardContent>
+            </Card>
         </div>
-
-        {/* 가이드 카드 (3단계) */}
-        <div className="grid md:grid-cols-3 gap-6 mb-12">
-          {/* Step 1 */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-            <div className="w-12 h-12 rounded-xl bg-violet-100 flex items-center justify-center mb-4">
-              <Pin className="w-6 h-6 text-violet-600" />
-            </div>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-violet-500 text-white text-xs font-bold">
-                1
-              </span>
-              <h3 className="text-lg font-semibold text-gray-900">{t('welcome.step1_title')}</h3>
-            </div>
-            <p className="text-gray-600 text-sm leading-relaxed">
-              {t('welcome.step1_desc')}
-            </p>
-          </div>
-
-          {/* Step 2 */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-            <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center mb-4">
-              <PanelRight className="w-6 h-6 text-purple-600" />
-            </div>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-purple-500 text-white text-xs font-bold">
-                2
-              </span>
-              <h3 className="text-lg font-semibold text-gray-900">{t('welcome.step2_title')}</h3>
-            </div>
-            <p className="text-gray-600 text-sm leading-relaxed">
-              {t('welcome.step2_desc')}
-            </p>
-          </div>
-
-          {/* Step 3 */}
-          <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-            <div className="w-12 h-12 rounded-xl bg-indigo-100 flex items-center justify-center mb-4">
-              <ShoppingBag className="w-6 h-6 text-indigo-600" />
-            </div>
-            <div className="flex items-center gap-2 mb-3">
-              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500 text-white text-xs font-bold">
-                3
-              </span>
-              <h3 className="text-lg font-semibold text-gray-900">{t('welcome.step3_title')}</h3>
-            </div>
-            <p className="text-gray-600 text-sm leading-relaxed">
-              {t('welcome.step3_desc')}
-            </p>
-          </div>
-        </div>
-
-        {/* 추가 정보 */}
-        <div className="bg-gradient-to-r from-violet-500 to-purple-600 rounded-2xl p-8 text-center text-white mb-8 shadow-lg">
-          <h3 className="text-xl font-semibold mb-3">{t('welcome.tips_title')}</h3>
-          <div className="space-y-2 text-violet-50">
-            <p>{t('welcome.tip1')}</p>
-            <p>{t('welcome.tip2')}</p>
-            <p>{t('welcome.tip3')}</p>
-          </div>
-        </div>
-
-        {/* 시작하기 버튼 */}
-        <div className="text-center">
-          <button
-            onClick={handleGetStarted}
-            className="inline-flex items-center gap-3 px-8 py-4 bg-violet-600 hover:bg-violet-700 text-white font-semibold text-lg rounded-xl shadow-lg shadow-violet-200 hover:shadow-xl hover:shadow-violet-300 transition-all transform hover:scale-105"
-          >
-            {t('welcome.start_btn')}
-            <ArrowRight className="w-5 h-5" />
-          </button>
-          <p className="mt-4 text-sm text-gray-500">
-            {t('welcome.start_hint')}
-          </p>
-        </div>
-      </div>
-    </div>
-  );
+    );
 }

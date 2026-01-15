@@ -1,26 +1,96 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { 
-  ShoppingBag, X, Settings, Search, Edit3, Check, RefreshCw, AlertCircle,
-  ChevronLeft, ChevronRight, Undo2, CheckCircle, Edit2
+import {
+  ShoppingBag, X, Check,
+  ChevronLeft, ChevronRight, Undo2, CheckCircle, Edit3
 } from 'lucide-react';
 import { useAuth, usePockets, useItems } from '@/hooks';
 import { useAuthStore } from '@/store/useAuthStore';
 import { usePocketStore } from '@/store/usePocketStore';
-import { supabase } from '@/services/supabase/client';
+// import { supabase } from '@/services/supabase/client';
 import { Toast, useToast } from '@/components/ui';
-import { PocketItem } from '@/components/PocketItem';
 import { cn, formatPrice, openDashboard } from '@/utils';
 import type { ProductData } from '@/utils/parser';
+import { processImage, uploadThumbnail } from '@/utils/imageOptimizer';
 
 type ScrapeStatus = 'idle' | 'scraping' | 'saving' | 'success' | 'error';
 type TabType = 'pocket' | 'today';
 
+const PocketThumbnail = ({ images = [] }: { images?: string[] }) => {
+  const displayImages = images.slice(0, 4);
+  const count = displayImages.length;
+
+  if (count === 0) {
+    return (
+      <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center border border-gray-200">
+        <img
+          src="/icon_thumbnail_default.png"
+          alt="Default"
+          className="w-10 h-10 object-cover"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = "/icon_folder_default.svg";
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (count === 1) {
+    return (
+      <div className="w-10 h-10 rounded-lg overflow-hidden border border-gray-200">
+        <img src={displayImages[0]} alt="" className="w-full h-full object-cover" />
+      </div>
+    );
+  }
+
+  if (count === 2) {
+    return (
+      <div className="w-10 h-10 rounded-lg overflow-hidden flex border border-gray-200">
+        <div className="w-1/2 h-full">
+          <img src={displayImages[0]} alt="" className="w-full h-full object-cover" />
+        </div>
+        <div className="w-1/2 h-full">
+          <img src={displayImages[1]} alt="" className="w-full h-full object-cover" />
+        </div>
+      </div>
+    );
+  }
+
+  if (count === 3) {
+    return (
+      <div className="w-10 h-10 rounded-lg overflow-hidden flex border border-gray-200">
+        <div className="w-1/2 h-full">
+          <img src={displayImages[0]} alt="" className="w-full h-full object-cover" />
+        </div>
+        <div className="w-1/2 h-full flex flex-col">
+          <div className="h-1/2 w-full">
+            <img src={displayImages[1]} alt="" className="w-full h-full object-cover" />
+          </div>
+          <div className="h-1/2 w-full">
+            <img src={displayImages[2]} alt="" className="w-full h-full object-cover" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 4 or more
+  return (
+    <div className="w-10 h-10 rounded-lg overflow-hidden grid grid-cols-2 border border-gray-200">
+      {displayImages.map((img, idx) => (
+        <div key={idx} className="w-full h-full">
+          <img src={img} alt="" className="w-full h-full object-cover" />
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export default function Popup() {
   const { t } = useTranslation();
   const { isAuthenticated, isLoading: authLoading, signIn, signUp, signInWithGoogle, error: authError, clearError } = useAuth();
-  const { pockets, selectedPocketId, select: selectPocket, create: createPocket, refresh: refreshPockets } = usePockets();
-  const { items, loading: itemsLoading, add: addItem, refresh: refreshItems, fetchToday } = useItems();
+  const { pockets, create: createPocket, refresh: refreshPockets } = usePockets();
+  const { items, add: addItem, refresh: refreshItems, fetchToday } = useItems();
   const pocketsLoading = usePocketStore((state) => state.pocketsLoading);
   const { toast, showToast, hideToast } = useToast();
 
@@ -48,10 +118,10 @@ export default function Popup() {
   // 탭 상태
   const [activeTab, setActiveTab] = useState<TabType>('pocket');
   const [todayItems, setTodayItems] = useState<typeof items>([]);
-  
+
   // 검색 상태
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   // 새 폴더 생성 상태
   const [isCreatingPocket, setIsCreatingPocket] = useState(false);
   const [newPocketName, setNewPocketName] = useState('');
@@ -96,12 +166,12 @@ export default function Popup() {
     const loadData = async () => {
       try {
         console.log('[Popup] 🔄 Authenticated! Loading pockets and today items...');
-        
+
         await Promise.all([
           usePocketStore.getState().fetchPockets(),
           usePocketStore.getState().fetchTodayItems()
         ]);
-        
+
         console.log('[Popup] 🎉 Data loaded successfully');
       } catch (error) {
         console.error('[Popup] ❌ Error loading data:', error);
@@ -129,7 +199,7 @@ export default function Popup() {
 
     try {
       const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
-      
+
       if (!tab?.id || tab.id === chrome.tabs.TAB_ID_NONE) {
         setScrapeError(t('error.no_tab_info'));
         setStatus('error');
@@ -144,28 +214,55 @@ export default function Popup() {
         return;
       }
 
-      chrome.tabs.sendMessage(
-        tab.id,
-        { type: 'SCRAPE_PRODUCT' },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            console.error('[Popup] Message error:', chrome.runtime.lastError.message);
-            setScrapeError(t('error.page_communication'));
-            setStatus('error');
-            return;
-          }
+      // 재시도 로직 추가 (Content Script가 로드될 때까지 대기)
+      const sendMessageWithRetry = async (retries = 3, delay = 500) => {
+        for (let i = 0; i < retries; i++) {
+          try {
+            const response = await new Promise<any>((resolve) => {
+              chrome.tabs.sendMessage(
+                tab.id!,
+                { type: 'SCRAPE_PRODUCT' },
+                (response) => {
+                  if (chrome.runtime.lastError) {
+                    console.warn(`[Popup] Retry ${i + 1}/${retries}:`, chrome.runtime.lastError.message);
+                    resolve(null);
+                  } else {
+                    resolve(response);
+                  }
+                }
+              );
+            });
 
-          if (response?.success && response.data) {
-            setProductData(response.data);
-            setEditedTitle(response.data.title); // 편집용 제목 초기화
-            setScrapeError('');
-            setStatus('idle');
-          } else {
-            setScrapeError(response?.error || t('error.product_not_found'));
-            setStatus('error');
+            if (response) {
+              if (response.success && response.data) {
+                setProductData(response.data);
+                setEditedTitle(response.data.title);
+                setScrapeError('');
+                setStatus('idle');
+                return;
+              } else {
+                setScrapeError(response.error || t('error.product_not_found'));
+                setStatus('error');
+                return;
+              }
+            }
+
+            // 재시도 전 대기
+            if (i < retries - 1) {
+              await new Promise(resolve => setTimeout(resolve, delay));
+            }
+          } catch (error) {
+            console.error(`[Popup] Retry ${i + 1} failed:`, error);
           }
         }
-      );
+
+        // 모든 재시도 실패
+        console.error('[Popup] All retries failed');
+        setScrapeError(t('error.page_communication'));
+        setStatus('error');
+      };
+
+      await sendMessageWithRetry();
     } catch (error) {
       console.error('[Popup] Scrape error:', error);
       setScrapeError(t('common.error'));
@@ -296,8 +393,8 @@ export default function Popup() {
   const handleStartEditPrice = () => {
     if (productData) {
       // 현재 가격을 string으로 변환 (콤마 포함)
-      const currentPrice = productData.price 
-        ? productData.price.toLocaleString() 
+      const currentPrice = productData.price
+        ? productData.price.toLocaleString()
         : '';
       setEditedPrice(currentPrice);
       setIsEditingPrice(true);
@@ -307,16 +404,16 @@ export default function Popup() {
 
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target.value;
-    
+
     // 숫자만 추출
     const numericValue = input.replace(/[^0-9]/g, '');
-    
+
     // 빈 값이면 그대로 설정
     if (numericValue === '') {
       setEditedPrice('');
       return;
     }
-    
+
     // 숫자를 콤마 포맷으로 변환
     const formatted = Number(numericValue).toLocaleString();
     setEditedPrice(formatted);
@@ -335,7 +432,7 @@ export default function Popup() {
         price: parsedPrice,
       });
     }
-    
+
     setIsEditingPrice(false);
   };
 
@@ -375,9 +472,18 @@ export default function Popup() {
   // ============================================================
   // 폴더에 저장 핸들러
   // ============================================================
+  // ============================================================
+  // 폴더에 저장 핸들러
+  // ============================================================
   const handleSaveToPocket = async (pocketId: string) => {
     if (!productData) {
       showToast(t('toast.fetch_product_first'), 'warning');
+      return;
+    }
+
+    const { user } = useAuthStore.getState();
+    if (!user) {
+      showToast(t('toast.login_required'), 'warning');
       return;
     }
 
@@ -385,17 +491,38 @@ export default function Popup() {
     setStatus('saving');
 
     try {
+      let finalImageUrl = currentImageUrl;
+      let finalBlurhash: string | null = null;
+
+      // 이미지 최적화 및 업로드 시도
+      if (currentImageUrl) {
+        try {
+          console.log('[Popup] 🖼️ Optimizing image...', currentImageUrl);
+          const { blob, blurhash } = await processImage(currentImageUrl);
+
+          console.log('[Popup] ☁️ Uploading thumbnail...');
+          finalImageUrl = await uploadThumbnail(user.id, blob);
+          finalBlurhash = blurhash;
+
+          console.log('[Popup] ✅ Image processed:', finalImageUrl);
+        } catch (imgError) {
+          console.warn('[Popup] ⚠️ Image optimization failed, using original:', imgError);
+          // 실패 시 원본 사용 (이미 finalImageUrl = currentImageUrl 상태)
+        }
+      }
+
       const result = await addItem({
         url: productData.url,
         title: productData.title, // 편집된 제목 사용
         site_name: productData.mallName || null,
-        image_url: currentImageUrl || null,
+        image_url: finalImageUrl || null,
         price: productData.price,
         currency: productData.currency || 'KRW',
         pocket_id: pocketId,
         is_pinned: false,
         memo: null,
         deleted_at: null,
+        blurhash: finalBlurhash,
       });
 
       if (result) {
@@ -437,10 +564,10 @@ export default function Popup() {
 
     try {
       const authState = useAuthStore.getState();
-      
+
       if (!authState.user) {
         await authState.initialize();
-        
+
         const refreshedState = useAuthStore.getState();
         if (!refreshedState.user) {
           showToast(t('toast.login_required'), 'warning');
@@ -450,7 +577,7 @@ export default function Popup() {
       }
 
       const result = await createPocket(newPocketName.trim());
-      
+
       if (result) {
         setNewPocketName('');
         setIsCreatingPocket(false);
@@ -528,7 +655,7 @@ export default function Popup() {
               className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
               required
             />
-            
+
             <input
               type="password"
               placeholder={t('auth.password_placeholder')}
@@ -569,10 +696,10 @@ export default function Popup() {
             onClick={signInWithGoogle}
             className="w-full flex items-center justify-center h-11 px-4 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl shadow-sm hover:bg-gray-50 transition-all"
           >
-            <img 
-              className="w-4 h-4 mr-2" 
-              src="https://www.svgrepo.com/show/475656/google-color.svg" 
-              alt="Google" 
+            <img
+              className="w-4 h-4 mr-2"
+              src="https://www.svgrepo.com/show/475656/google-color.svg"
+              alt="Google"
             />
             Google 계정으로 계속하기
           </button>
@@ -598,27 +725,17 @@ export default function Popup() {
   return (
     <div className="h-screen flex flex-col bg-white overflow-hidden">
       {/* 헤더 - flex-none (고정 높이) */}
-      <header className="flex-none flex items-center justify-between px-4 py-2 border-b border-gray-100">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-lg bg-violet-500 flex items-center justify-center">
-            <ShoppingBag className="w-3.5 h-3.5 text-white" />
-          </div>
-          <span className="text-base font-bold text-violet-500">pockest</span>
+      {/* 헤더 - flex-none (고정 높이) */}
+      <header className="flex-none flex items-center justify-between px-5 py-3 bg-white border-b border-gray-100/50">
+        <div className="flex items-center">
+          <img src="/logo.svg" alt="Pockest" className="h-6 w-auto" />
         </div>
-        <div className="flex items-center gap-0.5">
-          <button 
-            onClick={handleOpenSettings}
-            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <Settings className="w-4 h-4 text-gray-400" />
-          </button>
-          <button 
-            onClick={handleClose}
-            className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <X className="w-4 h-4 text-gray-400" />
-          </button>
-        </div>
+        <button
+          onClick={handleOpenSettings}
+          className="p-1 hover:bg-gray-50 rounded-lg transition-colors"
+        >
+          <img src="/icon_dashboard.svg" alt="Dashboard" className="w-6 h-6" />
+        </button>
       </header>
 
       {/* 상품 정보 프리뷰 영역 - flex-none (고정 높이) */}
@@ -641,6 +758,11 @@ export default function Popup() {
             </button>
           </div>
         </div>
+      ) : pocketsLoading ? (
+        <div className="flex flex-col items-center justify-center py-12 gap-3">
+          <div className="animate-spin w-8 h-8 border-3 border-violet-500 border-t-transparent rounded-full" />
+          <p className="text-sm text-gray-500">{t('popup.loading_data')}</p>
+        </div>
       ) : status === 'scraping' ? (
         <div className="flex-none px-4 py-4 bg-gray-50 border-b border-gray-100">
           <div className="flex items-center justify-center gap-2">
@@ -651,18 +773,17 @@ export default function Popup() {
       ) : status === 'error' || (!productData && status === 'idle') ? (
         <div className="flex-none px-4 py-4 bg-gray-50 border-b border-gray-100">
           <div className="flex items-center gap-3">
-            <AlertCircle className="w-8 h-8 text-gray-300 flex-shrink-0" />
+            <img src="/icon_warning.svg" alt="Warning" className="w-6 h-6 flex-shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-gray-500">
+              <p className="text-gray-600 text-sm leading-snug font-medium break-keep">
                 {scrapeError || t('popup.fetch_failed')}
               </p>
             </div>
             <button
               onClick={scrapeCurrentPage}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-100 text-violet-600 text-xs font-medium rounded-lg hover:bg-violet-200 transition-colors flex-shrink-0"
+              className="p-1 hover:bg-gray-200 rounded-full transition-colors flex-shrink-0"
             >
-              <RefreshCw className="w-3 h-3" />
-              {t('popup.retry')}
+              <img src="/icon_reload.svg" alt="Retry" className="w-6 h-6 opacity-60 hover:opacity-100 transition-opacity" />
             </button>
           </div>
         </div>
@@ -678,7 +799,7 @@ export default function Popup() {
                   <ShoppingBag className="w-8 h-8 text-gray-400" />
                 </div>
               )}
-              
+
               {hasMultipleImages && (
                 <>
                   <button
@@ -709,36 +830,45 @@ export default function Popup() {
             </div>
 
             {/* 상품 정보 + 제목 편집 */}
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] text-violet-500 font-medium mb-0.5">{productData.mallName}</p>
-              
-              {/* 제목 편집 영역 */}
-              {isEditingTitle ? (
-                <input
-                  ref={titleInputRef}
-                  type="text"
-                  value={editedTitle}
-                  onChange={(e) => setEditedTitle(e.target.value)}
-                  onBlur={handleSaveTitle}
-                  onKeyDown={handleTitleKeyDown}
-                  className="w-full text-sm font-medium text-gray-900 border border-violet-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-violet-400"
-                />
-              ) : (
-                <div className="flex items-start gap-2">
-                  <p className="text-sm font-medium text-gray-900 line-clamp-2 flex-1">{productData.title}</p>
-                  <button
-                    onClick={handleStartEditTitle}
-                    className="px-2 py-0.5 text-[10px] font-medium text-violet-500 bg-violet-50 hover:bg-violet-100 rounded-full transition-colors flex-shrink-0"
-                  >
-                    {t('popup.edit')}
-                  </button>
+            {/* 상품 정보 + 제목 편집 */}
+            <div className="flex-1 min-w-0 flex flex-col justify-between h-24 py-0.5">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-[11px] text-[#7747B5] font-bold">{productData.mallName}</p>
+                  {!isEditingTitle && (
+                    <button
+                      onClick={handleStartEditTitle}
+                      className="px-2 py-0.5 text-[10px] text-[#7747B5] bg-violet-50 hover:bg-violet-100 rounded-full transition-colors font-medium"
+                    >
+                      edit
+                    </button>
+                  )}
                 </div>
-              )}
-              
-              {/* 가격 편집 영역 - 3가지 상태 분기 */}
-              <div className="mt-1">
+
+                {/* 제목 편집 영역 */}
+                {isEditingTitle ? (
+                  <input
+                    ref={titleInputRef}
+                    type="text"
+                    value={editedTitle}
+                    onChange={(e) => setEditedTitle(e.target.value)}
+                    onBlur={handleSaveTitle}
+                    onKeyDown={handleTitleKeyDown}
+                    className="w-full text-sm font-medium text-gray-900 border border-violet-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-violet-400 bg-white"
+                  />
+                ) : (
+                  <p
+                    className="text-[13px] leading-[18px] text-gray-800 font-medium line-clamp-2 cursor-pointer hover:opacity-80"
+                    onClick={handleStartEditTitle}
+                  >
+                    {productData.title}
+                  </p>
+                )}
+              </div>
+
+              {/* 가격 편집 영역 */}
+              <div className="mt-auto">
                 {isEditingPrice ? (
-                  // 1. 수정 모드 (Input 표시 + 실시간 콤마 포맷팅)
                   <input
                     ref={priceInputRef}
                     type="text"
@@ -746,197 +876,150 @@ export default function Popup() {
                     onChange={handlePriceChange}
                     onBlur={handleSavePrice}
                     onKeyDown={handlePriceKeyDown}
-                    placeholder="15,000"
-                    className="w-32 border-b-2 border-violet-500 focus:outline-none text-xl font-bold text-gray-900 bg-transparent"
+                    placeholder="0"
+                    className="w-full border-b-2 border-[#7747B5] focus:outline-none text-lg font-bold text-gray-900 bg-transparent p-0"
                     autoFocus
                   />
-                ) : !productData.price || productData.price === 0 ? (
-                  // 2. 가격 없음 (수동 입력 버튼)
-                  <button
-                    onClick={handleStartEditPrice}
-                    className="text-violet-600 bg-violet-50 hover:bg-violet-100 px-3 py-1 rounded-lg text-xs font-bold transition-colors"
-                  >
-                    💰 가격 직접 입력
-                  </button>
                 ) : (
-                  // 3. 가격 있음 (가격 표시 + 연필 아이콘)
-                  <div className="flex items-center gap-2">
-                    <p className="text-xl font-bold text-gray-900">
-                      {formatPrice(productData.price, productData.currency)}
+                  <div className="flex items-center gap-1.5 group cursor-pointer" onClick={handleStartEditPrice}>
+                    <p className="text-lg font-extrabold text-[#333]">
+                      {!productData.price ? '가격 정보 없음' : formatPrice(productData.price, productData.currency)}
                     </p>
-                    <button
-                      onClick={handleStartEditPrice}
-                      className="p-1 hover:bg-violet-50 rounded transition-colors"
-                    >
-                      <Edit2 className="w-4 h-4 text-gray-400 hover:text-violet-500" />
-                    </button>
+                    {/* 가격 수정 연필 아이콘 */}
+                    <Edit3 className="w-3.5 h-3.5 text-gray-300 group-hover:text-gray-500 transition-colors" />
                   </div>
                 )}
               </div>
             </div>
           </div>
-          
-          {/* 이미지 썸네일 리스트 */}
-          {hasMultipleImages && (
-            <div className="flex gap-1.5 mt-2 overflow-x-auto pb-1">
-              {imageUrls.slice(0, 5).map((img, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setSelectedImageIndex(idx)}
-                  className={cn(
-                    'w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 border-2 transition-all',
-                    idx === selectedImageIndex
-                      ? 'border-violet-500'
-                      : 'border-transparent hover:border-gray-300'
-                  )}
-                >
-                  <img src={img} alt="" className="w-full h-full object-cover" />
-                </button>
-              ))}
-            </div>
-          )}
         </div>
       ) : null}
 
-      {/* Body - flex-1 (남은 공간 전부 차지) */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        {/* 타이틀 + 검색바 - flex-none */}
-        <div className="flex-none px-4 pt-3 pb-2">
-          <h2 className="text-center text-gray-800 font-medium text-xs mb-2">
-            {t('popup.select_pocket')}
-          </h2>
+      {/* 탭 & 검색 영역 */}
+      <div className="flex-none bg-white">
+        <div className="px-5 pt-4 pb-2 text-center text-sm text-gray-500 font-medium">
+          저장할 포켓을 선택하세요
+        </div>
+
+        <div className="px-5 py-2">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
             <input
               type="text"
-              placeholder={t('popup.search_pocket')}
+              placeholder="포켓 검색"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-8 pr-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-sm focus:outline-none focus:border-violet-300 focus:bg-white transition-colors"
+              className="w-full h-10 pl-10 pr-4 bg-white border border-gray-200 rounded-full text-sm focus:outline-none focus:border-[#7747B5] transition-colors shadow-sm"
             />
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2">
+              <img src="/icon_search.svg" alt="Search" className="w-4 h-4 opacity-50" />
+            </div>
           </div>
         </div>
 
-        {/* 탭 메뉴 - flex-none */}
-        <div className="flex-none flex border-b border-gray-100">
+        <div className="flex border-b border-gray-200 mt-1">
           <button
             onClick={() => setActiveTab('pocket')}
             className={cn(
-              'flex-1 py-2 text-xs font-medium text-center transition-colors relative',
-              activeTab === 'pocket'
-                ? 'text-violet-600'
-                : 'text-gray-400 hover:text-gray-600'
+              "flex-1 py-3 text-sm font-bold transition-colors relative",
+              activeTab === 'pocket' ? "text-[#7747B5]" : "text-gray-400"
             )}
           >
-            {t('popup.tab_pocket')}
+            Pocket
             {activeTab === 'pocket' && (
-              <div className="absolute bottom-0 left-4 right-4 h-0.5 bg-violet-500 rounded-full" />
+              <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#7747B5]" />
             )}
           </button>
           <button
             onClick={() => setActiveTab('today')}
             className={cn(
-              'flex-1 py-2 text-xs font-medium text-center transition-colors relative',
-              activeTab === 'today'
-                ? 'text-violet-600'
-                : 'text-gray-400 hover:text-gray-600'
+              "flex-1 py-3 text-sm font-bold transition-colors relative",
+              activeTab === 'today' ? "text-[#7747B5]" : "text-gray-400"
             )}
           >
-            {t('popup.tab_today')}
+            Today
             {activeTab === 'today' && (
-              <div className="absolute bottom-0 left-4 right-4 h-0.5 bg-violet-500 rounded-full" />
+              <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#7747B5]" />
             )}
           </button>
         </div>
+      </div>
 
-        {/* 리스트 영역 - flex-1 overflow-y-auto + pb-20 (하단 버튼 공간 확보) */}
-        <div className="flex-1 overflow-y-auto pb-20">
-          {/* 로딩 스피너: 데이터 로드 중일 때 표시 */}
-          {(activeTab === 'pocket' && pocketsLoading) || (activeTab === 'today' && itemsLoading) ? (
-            <div className="flex flex-col items-center justify-center py-12 gap-3">
-              <div className="animate-spin w-8 h-8 border-3 border-violet-500 border-t-transparent rounded-full" />
-              <p className="text-sm text-gray-500">{t('popup.loading_data')}</p>
-            </div>
-          ) : activeTab === 'pocket' ? (
-            <div className="divide-y divide-gray-50">
-              {filteredPockets.length === 0 ? (
-                <div className="text-center py-8 text-gray-400 text-sm">
-                  {searchQuery ? t('popup.no_search_results') : t('popup.no_folders')}
+      {/* 포켓 목록 영역 */}
+      <div className="flex-1 overflow-y-auto p-5 space-y-2 bg-gray-50/50">
+        {pocketsLoading ? (
+          <div className="flex items-center justify-center py-10">
+            <div className="animate-spin w-6 h-6 border-2 border-[#7747B5] border-t-transparent rounded-full" />
+          </div>
+        ) : activeTab === 'pocket' ? (
+          // Pocket 탭: 폴더 목록
+          filteredPockets.length > 0 ? (
+            filteredPockets.map((pocket) => (
+              <div
+                key={pocket.id}
+                onClick={() => openDashboard(pocket.id)}
+                className="group flex items-center justify-between p-3 bg-white rounded-2xl border border-transparent hover:border-[#7747B5]/30 hover:shadow-md transition-all cursor-pointer"
+              >
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="w-10 h-10 flex-shrink-0">
+                    <PocketThumbnail images={pocket.recent_thumbnails} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-bold text-gray-900 text-sm truncate">{pocket.name}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{pocket.item_count || 0}개</p>
+                  </div>
                 </div>
-              ) : (
-                filteredPockets.map((pocket) => (
-                  <PocketItem
-                    key={pocket.id}
-                    pocket={pocket}
-                    onSave={handleSaveToPocket}
-                    isSelected={selectedPocketId === pocket.id}
-                    isSaving={status === 'saving'}
-                    showSaveButton={productData !== null && !isSaved}
-                    isPopup={true}
-                  />
-                ))
-              )}
-            </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSaveToPocket(pocket.id);
+                  }}
+                  className="px-4 py-2 bg-gray-50 text-gray-500 text-sm font-bold rounded-full group-hover:bg-[#7747B5] group-hover:text-white transition-colors"
+                >
+                  담기
+                </button>
+              </div>
+            ))
           ) : (
-            <div className="divide-y divide-gray-50">
-              {todayItems.length === 0 ? (
-                <div className="text-center py-8 text-gray-400 text-sm">
-                  {t('popup.no_today_items')}
-                </div>
-              ) : (
-                todayItems.map((item) => {
-                  // 저장 시간을 로컬 타임존으로 변환
-                  const savedTime = new Date(item.created_at).toLocaleTimeString('ko-KR', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  });
-                  
-                  return (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer transition-colors"
-                      onClick={() => window.open(item.url, '_blank')}
-                    >
-                      <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                        {item.image_url ? (
-                          <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <ShoppingBag className="w-5 h-5 text-gray-300" />
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-[10px] text-gray-400">{item.site_name}</p>
-                          <span className="text-[10px] text-gray-300">•</span>
-                          <p className="text-[10px] text-violet-400">{savedTime}</p>
-                        </div>
-                        <p className="font-medium text-sm text-gray-900 truncate">{item.title}</p>
-                        {item.price && (
-                          <p className="text-xs font-bold text-gray-900">
-                            {formatPrice(item.price, item.currency || 'KRW')}
-                          </p>
-                        )}
-                      </div>
-
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRemoveItem(item.id);
-                        }}
-                        className="p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
-                      >
-                        <X className="w-3.5 h-3.5 text-gray-400" />
-                      </button>
-                    </div>
-                  );
-                })
-              )}
+            <div className="text-center py-10 text-gray-400 text-sm">
+              검색 결과가 없습니다.
             </div>
-          )}
-        </div>
+          )
+        ) : (
+          // Today 탭: 오늘 저장한 아이템 목록
+          todayItems.length > 0 ? (
+            todayItems.map((item) => (
+              <div key={item.id} className="bg-white rounded-xl p-3 flex gap-3 shadow-sm">
+                <div className="w-16 h-16 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0">
+                  {item.image_url ? (
+                    <img src={item.image_url} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    <ShoppingBag className="w-6 h-6 text-gray-300 m-auto" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0 flex flex-col justify-center">
+                  <p className="text-xs text-gray-500 mb-0.5">{item.site_name || '쇼핑몰'}</p>
+                  <p className="text-sm font-medium text-gray-900 line-clamp-1">{item.title}</p>
+                  <p className="text-sm font-bold text-gray-900 mt-1">
+                    {formatPrice(item.price || 0, item.currency || 'KRW')}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleRemoveItem(item.id)}
+                  className="p-1 opacity-0 group-hover:opacity-100 hover:bg-red-50 rounded-full transition-all"
+                >
+                  <X className="w-4 h-4 text-gray-400 hover:text-red-500" />
+                </button>
+              </div>
+            ))
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-3">
+                <ShoppingBag className="w-6 h-6 text-gray-300" />
+              </div>
+              <p className="text-gray-400 text-sm">상품이 없습니다.</p>
+            </div>
+          )
+        )}
       </div>
 
       {/* Footer - fixed bottom (하단 고정) */}
@@ -993,13 +1076,15 @@ export default function Popup() {
       </div>
 
       {/* Toast 알림 */}
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={hideToast}
-        />
-      )}
-    </div>
+      {
+        toast && (
+          <Toast
+            message={toast.message}
+            type={toast.type}
+            onClose={hideToast}
+          />
+        )
+      }
+    </div >
   );
 }
