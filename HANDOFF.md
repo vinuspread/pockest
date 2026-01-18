@@ -1,59 +1,60 @@
-# Project Handoff Status
-**Date:** 2026-01-15
-**Project:** Pockest (Chrome Extension & Web)
+# Session Handoff Report (2026-01-18)
 
-## 1. Current Context
-We are currently focusing on the **Chrome Extension** development. The Web version work has been paused.
-The immediate goal is to complete the core extension features.
+## 📝 Summary of Work
+Today's session focused on stabilizing the application, resolving critical dashboard dataloading issues, and proactively securing the application.
 
-### Recent Accomplishments
-- **Create Pocket Modal**: Implemented the modal for creating new pockets from the Sidebar.
-  - Refactored `CreatePocketModal.tsx` to use standard UI components (`Input`, `Button`).
-  - Verified integration with `Sidebar.tsx` and `usePockets` hook (Supabase).
-  - Validated build success via `npm run build`.
+### Key Achievements
+1.  **Dashboard "No Items" Fix**:
+    *   **Root Cause**: Race condition between `folders` default view and `all` data fetching logic.
+    *   **Fix**: Changing default `Dashboard.tsx` view to `'all'` ensured consistent data loading for all users.
+2.  **CSP & Security Hardening**:
+    *   **Fix**: Updated `Content-Security-Policy` in `index.html`, `dashboard.html`, and `popup/index.html` to allow fonts (jsdelivr) and HMR (localhost) connections.
+    *   **Audit**: Verified all HTML entry points are now consistent.
+3.  **Proactive Error Prevention**:
+    *   **Fix**: Downgraded non-critical `console.error` logs (Auth session, Affiliate links) to `console.warn` to prevent unnecessary "Error" flags in extension managers.
+    *   **Fix**: Hardened `SharedPocketPage` loading logic to handle errors gracefully.
+4.  **Admin Dashboard Audit**:
+    *   Verified `AdminDashboard.tsx` and `UserManagement.tsx` loading logic is robust.
 
-## 2. Technical Environment
-- **OS:** Windows (Targeting cross-platform compilation if needed)
-- **Node.js:** Standard Environment
-- **Package Manager:** npm
-- **Build Tool:** Vite (Dual config: `vite.config.ts` for Extension, `vite.web.config.ts` for Web)
+---
 
-### Key Configurations
-- **Extension Port:** Hardcoded to `3000` in `vite.config.ts` for consistent local dev.
-- **Supabase:** Logic centralized in `src/store/usePocketStore.ts` and `src/services/supabase/client.ts`.
+## 🚫 Ignored Files (Not in Git)
+The following files/directories are configured in `.gitignore` and **must be manually transferred or recreated** on a new machine:
 
-## 3. How to Resume Work
-1. **Clone/Pull Repository**:
-   ```bash
-   git pull origin main
-   ```
-2. **Install Dependencies**:
-   ```bash
-   npm install
-   ```
-3. **Run Extension in Development Mode**:
-   ```bash
-   npm run dev
-   ```
-   > **Note:** This will start the Vite server for the extension. You need to load the `dist` folder as an "Unpacked Extension" in Chrome.
+*   **`node_modules/`**: Dependencies (Run `npm install` to restore).
+*   **`.env`**: Environment variables (Contains Supabase keys). 
+    *   *Action*: Copy your local `.env` file securely or ask the project admin for keys.
+*   **`dist/` & `dist-web/`**: Build artifacts (Run `npm run build` or `npm run build:web` to regenerate).
+*   **`.vercel/`**: Vercel deployment cache.
 
-## 4. Next Steps & To-Do
-The following tasks were in the pipeline:
+---
 
-1. **Verify "Create Pocket" Feature**:
-   - Although built successfully, manual verification in the actual Chrome Extension environment is needed on the new PC.
-2. **Extension <-> Web Connection**:
-   - Establish authentication sharing or seamless transition between the Popup/Sidepanel and the Web Dashboard.
-3. **Pocket Management**:
-   - Implement/Verify Edit and Delete functionalities for Pockets in the Extension UI.
-4. **Item Capture**:
-   - Verify the core value prop: capturing items from current tab (Content Script -> Background/Sidepanel).
+## 💻 How to Resume Work (New PC)
 
-## 5. File System Key Points
-- `src/components/CreatePocketModal.tsx`: Recently simplified and styled.
-- `src/components/layout/Sidebar.tsx`: Entry point for pocket creation.
-- `task.md`: Contains the granular checklist of recent and upcoming tasks.
+### 1. Clone & Install
+```bash
+git clone https://github.com/vinuspread/pockest.git
+cd pockest
+npm install
+```
 
-## 6. Known Issues / Notes
-- Users asked to focus *only* on the Extension for now.
-- `localhost:3000` connection issues were resolved by fixing `vite.config.ts`.
+### 2. Environment Setup
+Create a `.env` file in the root directory with the following keys (get values from Supabase/Project Admin):
+```env
+VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_APP_URL=https://pockest.vercel.app  # or localhost:3000 for dev
+```
+
+### 3. Run Development Server
+```bash
+npm run dev
+```
+*   Access Dashboard: `http://localhost:3000`
+*   Test Extension: Load `dist` folder in Chrome Extensions (Developer Mode).
+
+### 4. Deployment to Vercel
+```bash
+# Push to master triggers auto-deploy
+git push origin master
+```
