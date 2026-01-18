@@ -33,7 +33,7 @@ export const useAuthStore = create<AuthState>()(
           console.log('[AuthStore] initialize: getSession result', { session, sessionError });
 
           if (sessionError) {
-            console.error('[Auth] Session error:', sessionError.message);
+            console.warn('[Auth] Session error:', sessionError.message);
             set({ user: null, status: 'unauthenticated', error: null });
             return;
           }

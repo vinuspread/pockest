@@ -49,7 +49,7 @@ export default function SharedPocketPage() {
                 setItems(itemData || []);
 
             } catch (err: any) {
-                console.error(err);
+                console.warn(err);
                 setError(err.message || '포켓을 불러오는데 실패했습니다.');
             } finally {
                 setLoading(false);

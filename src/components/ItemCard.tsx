@@ -62,7 +62,7 @@ export const ItemCard = memo(function ItemCard({
                 win.location.href = data.affiliateUrl;
             }
         } catch (err) {
-            console.error('[ItemCard] Affiliate link generation failed:', err);
+            console.warn('[ItemCard] Affiliate link generation failed:', err);
             // 실패해도 이미 원본이 열려있으므로 사용자 경험 저해 없음
         }
     };
