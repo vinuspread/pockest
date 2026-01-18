@@ -108,8 +108,8 @@ export default function Dashboard() {
   };
 
 
-  // 초기 뷰 설정: pocketId가 없으면 'folders' (포켓 목록)를 기본값으로 사용
-  const [currentView, setCurrentView] = useState<ViewType>(pocketId ? 'all' : 'folders');
+  // 초기 뷰 설정: 기본값을 'all'로 변경하여 모든 상품을 먼저 보여줌
+  const [currentView, setCurrentView] = useState<ViewType>('all');
 
   // useToast 훅 사용
   const { toast, showToast, hideToast } = useToast();
