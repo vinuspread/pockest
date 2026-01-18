@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/services/supabase/client';
-import { Header } from '@/components/layout/Header';
 import { ItemGrid } from '@/components/dashboard/ItemGrid';
 import { useAuth } from '@/hooks';
 import type { Item, Pocket } from '@/types/database';

@@ -257,14 +257,14 @@ export default function Popup() {
         }
 
         // 모든 재시도 실패
-        console.error('[Popup] All retries failed');
+        console.warn('[Popup] All retries failed');
         setScrapeError(t('error.page_communication'));
         setStatus('error');
       };
 
       await sendMessageWithRetry();
     } catch (error) {
-      console.error('[Popup] Scrape error:', error);
+      console.warn('[Popup] Scrape error:', error);
       setScrapeError(t('common.error'));
       setStatus('error');
     }

@@ -39,6 +39,7 @@ export default function Dashboard() {
   const [isEditPocketModalOpen, setIsEditPocketModalOpen] = useState(false);
   const [isCompleteProfileModalOpen, setIsCompleteProfileModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true); // Prevent flicker
   // console.log('[Dashboard] 🚀 Component mounting...');
 
   const { pocketId } = useParams<{ pocketId?: string }>();
@@ -54,7 +55,7 @@ export default function Dashboard() {
     remove: deletePocket,
     togglePublic
   } = usePockets();
-  const { items, itemsLoading, searchItems: search, updateItem } = useItemStore();
+  const { items, itemsLoading, itemsError, searchItems: search, updateItem } = useItemStore();
   const [activeId, setActiveId] = useState<string | null>(null);
 
   // ... (existing helper hooks for dnd sensors)
@@ -190,6 +191,8 @@ export default function Dashboard() {
           }
         } catch (err) {
           console.error('[Dashboard] ❌ Error loading view data:', err);
+        } finally {
+          setIsInitialLoad(false);
         }
       };
       loadViewData();
@@ -396,6 +399,7 @@ export default function Dashboard() {
         <Header
           onSearch={search}
           onMenuClick={() => setIsMobileMenuOpen(true)}
+          onLogoClick={() => handleViewChange('all')}
           onLogout={signOut}
           onCreatePocket={() => setIsCreatePocketModalOpen(true)}
           user={user as any}
@@ -504,13 +508,19 @@ export default function Dashboard() {
               </div>
 
               <div className="h-full">
-                {currentView === 'folders' ? (
+                {itemsError ? (
+                  <div className="flex flex-col items-center justify-center py-20 text-red-500 gap-4">
+                    <p>데이터를 불러오는데 실패했습니다.</p>
+                    <p className="text-sm bg-red-50 px-4 py-2 rounded font-mono">{itemsError}</p>
+                    <Button onClick={() => window.location.reload()} variant="primary">새로고침</Button>
+                  </div>
+                ) : currentView === 'folders' ? (
                   <FolderGrid
                     pockets={pockets}
                     onSelectPocket={handleSelectPocket}
                     onCreatePocket={() => setIsCreatePocketModalOpen(true)}
                   />
-                ) : itemsLoading ? (
+                ) : itemsLoading || isInitialLoad ? (
                   <div className="flex items-center justify-center py-20">
                     <div className="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full" />
                   </div>

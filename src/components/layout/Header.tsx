@@ -9,11 +9,12 @@ interface HeaderProps {
   onMenuClick?: () => void;
   onLogout?: () => void;
   onCreatePocket?: () => void;
+  onLogoClick?: () => void; // New prop
   user?: User | null;
   className?: string;
 }
 
-export function Header({ onSearch, onMenuClick, onCreatePocket, user, className }: HeaderProps) {
+export function Header({ onSearch, onMenuClick, onCreatePocket, onLogoClick, user, className }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,7 +45,7 @@ export function Header({ onSearch, onMenuClick, onCreatePocket, user, className 
       {/* 1. 좌측 영역: 로고 */}
       <div className="flex items-center gap-4">
         {/* 로고 (120px) */}
-        <div className="flex items-center">
+        <div className="flex items-center cursor-pointer" onClick={onLogoClick}>
           <img src="/logo.svg" alt="Pockest" className="w-[120px] h-auto object-contain" />
         </div>
       </div>
