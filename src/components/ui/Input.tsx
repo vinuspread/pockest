@@ -1,15 +1,27 @@
-import React, { forwardRef } from 'react';
+import React, { forwardRef, useState } from 'react';
 import { cn } from '@/utils';
+import { Eye, EyeOff } from 'lucide-react';
 
-interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
   leftIcon?: React.ReactNode;
-  rightIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode; // 유지하되, password type일 경우 덮어쓰거나 별도 처리
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, label, error, leftIcon, rightIcon, ...props }, ref) => {
+  ({ className, type = 'text', label, error, leftIcon, rightIcon, ...props }, ref) => {
+    const [showPassword, setShowPassword] = useState(false);
+    const isPasswordType = type === 'password';
+
+    // 실제로 적용될 타입 (비밀번호 보기 토글에 따라 변경)
+    const inputType = isPasswordType ? (showPassword ? 'text' : 'password') : type;
+
+    const handleTogglePassword = (e: React.MouseEvent) => {
+      e.preventDefault();
+      setShowPassword(!showPassword);
+    };
+
     return (
       <div className="w-full">
         {label && (
@@ -19,43 +31,51 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
         )}
         <div className="relative">
           {leftIcon && (
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
               {leftIcon}
             </div>
           )}
           <input
             ref={ref}
+            type={inputType}
             className={cn(
-              'w-full rounded-lg border border-gray-300 bg-white',
-              'px-4 py-2.5 text-sm text-gray-900 placeholder-gray-400',
-              'transition-colors duration-150',
-              'focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none',
-              'disabled:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60',
-              error && 'border-red-500 focus:border-red-500 focus:ring-red-500/20',
-              leftIcon && 'pl-10',
-              rightIcon && 'pr-10',
+              "w-full px-4 py-3 bg-white border rounded-xl text-sm transition-all outline-none",
+              "placeholder:text-gray-400",
+              "focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10",
+              "disabled:bg-gray-50 disabled:text-gray-500",
+              error ? "border-red-300 focus:border-red-500 focus:ring-red-500/10" : "border-gray-200",
+              leftIcon && "pl-10",
+              (rightIcon || isPasswordType) && "pr-10", // 아이콘 공간 확보
               className
             )}
             {...props}
           />
-          {rightIcon && (
-            <div className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400">
-              {rightIcon}
-            </div>
+          {/* 비밀번호 토글 버튼 우선, 아니면 props로 받은 rightIcon 표시 */}
+          {isPasswordType ? (
+            <button
+              type="button"
+              onClick={handleTogglePassword}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 rounded-md transition-colors"
+              tabIndex={-1}
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          ) : (
+            rightIcon && (
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                {rightIcon}
+              </div>
+            )
           )}
         </div>
-        {error && <p className="mt-1.5 text-sm text-red-600">{error}</p>}
+        {error && (
+          <p className="mt-1.5 text-xs text-red-500 animate-in slide-in-from-top-1 fade-in">
+            {error}
+          </p>
+        )}
       </div>
     );
   }
 );
 
 Input.displayName = 'Input';
-
-
-
-
-
-
-
-

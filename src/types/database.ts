@@ -20,6 +20,11 @@ export type Database = {
           email: string;
           tier: 'free' | 'premium';
           affiliate_agreed?: boolean;
+          is_banned?: boolean; // New
+          country?: string | null; // New
+          age_group?: string | null; // New
+          gender?: string | null; // New
+          last_ip?: string | null; // New
           created_at: string;
           updated_at: string;
         };
@@ -28,6 +33,11 @@ export type Database = {
           email: string;
           tier?: 'free' | 'premium';
           affiliate_agreed?: boolean;
+          is_banned?: boolean;
+          country?: string | null;
+          age_group?: string | null;
+          gender?: string | null;
+          last_ip?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -36,6 +46,11 @@ export type Database = {
           email?: string;
           tier?: 'free' | 'premium';
           affiliate_agreed?: boolean;
+          is_banned?: boolean;
+          country?: string | null;
+          age_group?: string | null;
+          gender?: string | null;
+          last_ip?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -47,6 +62,7 @@ export type Database = {
           user_id: string;
           name: string;
           is_default: boolean;
+          is_public: boolean; // New
           created_at: string;
           updated_at: string;
           deleted_at: string | null;
@@ -56,6 +72,7 @@ export type Database = {
           user_id: string;
           name: string;
           is_default?: boolean;
+          is_public?: boolean; // New
           created_at?: string;
           updated_at?: string;
           deleted_at?: string | null;
@@ -65,6 +82,7 @@ export type Database = {
           user_id?: string;
           name?: string;
           is_default?: boolean;
+          is_public?: boolean; // New
           created_at?: string;
           updated_at?: string;
           deleted_at?: string | null;
@@ -145,6 +163,91 @@ export type Database = {
             columns: ["pocket_id"];
             isOneToOne: false;
             referencedRelation: "pockets";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      affiliate_platforms: {
+        Row: {
+          id: string;
+          name: string;
+          domains: string[];
+          type: 'param_injection' | 'api_generation';
+          config: Json;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          domains: string[];
+          type: 'param_injection' | 'api_generation';
+          config?: Json;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          domains?: string[];
+          type?: 'param_injection' | 'api_generation';
+          config?: Json;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      click_logs: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          item_id: string | null;
+          platform_id: string | null;
+          original_url: string | null;
+          affiliate_url: string | null;
+          clicked_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          item_id?: string | null;
+          platform_id?: string | null;
+          original_url?: string | null;
+          affiliate_url?: string | null;
+          clicked_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string | null;
+          item_id?: string | null;
+          platform_id?: string | null;
+          original_url?: string | null;
+          affiliate_url?: string | null;
+          clicked_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "click_logs_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "click_logs_item_id_fkey";
+            columns: ["item_id"];
+            isOneToOne: false;
+            referencedRelation: "items";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "click_logs_platform_id_fkey";
+            columns: ["platform_id"];
+            isOneToOne: false;
+            referencedRelation: "affiliate_platforms";
             referencedColumns: ["id"];
           }
         ];

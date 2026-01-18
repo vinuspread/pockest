@@ -3,7 +3,7 @@
  * 쇼핑몰 페이지에서 상품 정보를 추출하고 Extension과 통신
  */
 
-import { parseProductFromPage, isProductPage, type ProductData } from '@/utils/parser';
+import { parseProductFromPage, parseProductWithRetry, isProductPage, type ProductData } from '@/utils/parser';
 
 // ============================================================
 // 타입 정의
@@ -59,12 +59,13 @@ chrome.runtime.onMessage.addListener(
 /**
  * 상품 정보 스크래핑 핸들러
  */
-function handleScrapeProduct(
+async function handleScrapeProduct(
   sendResponse: (response: ScrapeResponse) => void
-): void {
+): Promise<void> {
   try {
-    const productData = parseProductFromPage(document);
-    
+    // SPA 대응을 위해 재시도 로직이 포함된 파서 사용
+    const productData = await parseProductWithRetry(document);
+
     // 최소한의 데이터 검증
     if (!productData.title && !productData.imageUrl) {
       sendResponse({

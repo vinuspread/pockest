@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { usePocketStore } from '@/store/usePocketStore';
+import { useItemStore } from '@/store/useItemStore';
 import type { ItemFilters } from '@/types';
 
 /**
@@ -25,7 +25,7 @@ export function useItems() {
     setFilters,
     clearFilters,
     setPage,
-  } = usePocketStore();
+  } = useItemStore();
 
   // 초기 로드 제거 (부모 컴포넌트에서 인증 후 명시적으로 호출)
   // useEffect(() => {
@@ -99,8 +99,3 @@ export function useItems() {
     prevPage: () => hasPrevPage && setPage(currentPage + 1),
   };
 }
-
-
-
-
-

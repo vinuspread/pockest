@@ -1,5 +1,7 @@
 
 
+import { memo } from 'react';
+import { useDroppable } from '@dnd-kit/core';
 import { cn } from '@/utils';
 import { PocketThumbnail } from './ui/PocketThumbnail';
 import type { PocketWithCount } from '@/types';
@@ -10,23 +12,29 @@ interface PocketCardProps {
     className?: string;
 }
 
-export function PocketCard({ pocket, onClick, className }: PocketCardProps) {
+export const PocketCard = memo(function PocketCard({ pocket, onClick, className }: PocketCardProps) {
+    const { setNodeRef, isOver } = useDroppable({
+        id: pocket.id,
+        data: { type: 'pocket', pocket }
+    });
+
     return (
         <div
+            ref={setNodeRef}
             onClick={onClick}
             className={cn(
-                'group bg-white rounded-2xl overflow-hidden cursor-pointer',
-                'border border-gray-100',
+                'group bg-white rounded-[20px] overflow-hidden cursor-pointer',
+                isOver ? 'border-2 border-primary-500 bg-primary-50' : 'border border-[#EEE]',
+                'p-3 flex flex-col gap-3', // Padding 12px, Gap 12px
                 'hover:border-primary-200 hover:shadow-xl hover:-translate-y-1',
                 'transition-all duration-300 ease-out',
-                // Shadow handling: The user was debating this.
-                // We'll add a subtle shadow by default to give it depth (Shadow "meaning" folder box).
                 'shadow-sm',
+                'will-change-transform [backface-visibility:hidden]', // Fix for font aliasing
                 className
             )}
         >
             {/* 썸네일 그리드 (2x2) */}
-            <div className="aspect-square bg-gray-50 relative overflow-hidden group-hover:opacity-90 transition-opacity">
+            <div className="aspect-square bg-gray-50 relative overflow-hidden rounded-[12px] group-hover:opacity-90 transition-opacity">
                 <PocketThumbnail
                     images={pocket.recent_thumbnails}
                     className="w-full h-full"
@@ -37,8 +45,8 @@ export function PocketCard({ pocket, onClick, className }: PocketCardProps) {
             </div>
 
             {/* 정보 영역 */}
-            <div className="p-5">
-                <h3 className="font-bold text-gray-900 text-lg mb-1 truncate group-hover:text-primary-600 transition-colors">
+            <div className="px-1 pb-1"> {/* Minimal padding for text alignment */}
+                <h3 className="font-bold text-gray-900 text-lg mb-0.5 truncate group-hover:text-primary-600 transition-colors">
                     {pocket.name}
                 </h3>
                 <p className="text-gray-500 text-sm">
@@ -47,4 +55,4 @@ export function PocketCard({ pocket, onClick, className }: PocketCardProps) {
             </div>
         </div>
     );
-}
+});

@@ -7,11 +7,13 @@ import {
 import { useAuth, usePockets, useItems } from '@/hooks';
 import { useAuthStore } from '@/store/useAuthStore';
 import { usePocketStore } from '@/store/usePocketStore';
+import { useItemStore } from '@/store/useItemStore';
 // import { supabase } from '@/services/supabase/client';
 import { Toast, useToast } from '@/components/ui';
 import { cn, formatPrice, openDashboard } from '@/utils';
 import type { ProductData } from '@/utils/parser';
 import { processImage, uploadThumbnail } from '@/utils/imageOptimizer';
+import { AuthForms } from '@/components/auth/AuthForms';
 
 type ScrapeStatus = 'idle' | 'scraping' | 'saving' | 'success' | 'error';
 type TabType = 'pocket' | 'today';
@@ -88,7 +90,7 @@ const PocketThumbnail = ({ images = [] }: { images?: string[] }) => {
 
 export default function Popup() {
   const { t } = useTranslation();
-  const { isAuthenticated, isLoading: authLoading, signIn, signUp, signInWithGoogle, error: authError, clearError } = useAuth();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { pockets, create: createPocket, refresh: refreshPockets } = usePockets();
   const { items, add: addItem, refresh: refreshItems, fetchToday } = useItems();
   const pocketsLoading = usePocketStore((state) => state.pocketsLoading);
@@ -122,16 +124,14 @@ export default function Popup() {
   // 검색 상태
   const [searchQuery, setSearchQuery] = useState('');
 
-  // 새 폴더 생성 상태
+  // 새 포켓 생성 상태
   const [isCreatingPocket, setIsCreatingPocket] = useState(false);
   const [newPocketName, setNewPocketName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
   // 로그인 폼 상태
-  const [isLoginMode, setIsLoginMode] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  // const [isLoginMode, setIsLoginMode] = useState(true); // Moved to AuthForms
+  // const [isSubmitting, setIsSubmitting] = useState(false); // Moved to AuthForms
 
   // 현재 탭 URL 추적
   const currentUrlRef = useRef<string>('');
@@ -169,7 +169,7 @@ export default function Popup() {
 
         await Promise.all([
           usePocketStore.getState().fetchPockets(),
-          usePocketStore.getState().fetchTodayItems()
+          useItemStore.getState().fetchTodayItems()
         ]);
 
         console.log('[Popup] 🎉 Data loaded successfully');
@@ -330,7 +330,7 @@ export default function Popup() {
     }
   }, [activeTab, items]);
 
-  // 폴더 검색 필터링
+  // 포켓 검색 필터링
   const filteredPockets = pockets.filter((pocket) =>
     pocket.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -451,29 +451,10 @@ export default function Popup() {
   // ============================================================
   // 로그인/회원가입 핸들러
   // ============================================================
-  const handleAuthSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) return;
 
-    setIsSubmitting(true);
-    clearError();
-
-    try {
-      if (isLoginMode) {
-        await signIn(email, password);
-      } else {
-        await signUp(email, password);
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   // ============================================================
-  // 폴더에 저장 핸들러
-  // ============================================================
-  // ============================================================
-  // 폴더에 저장 핸들러
+  // 포켓에 저장 핸들러
   // ============================================================
   const handleSaveToPocket = async (pocketId: string) => {
     if (!productData) {
@@ -549,7 +530,7 @@ export default function Popup() {
   };
 
   // ============================================================
-  // 새 폴더 생성 핸들러
+  // 새 포켓 생성 핸들러
   // ============================================================
   const handleCreatePocket = async (e?: React.MouseEvent) => {
     if (e) {
@@ -614,7 +595,7 @@ export default function Popup() {
   if (authLoading) {
     return (
       <div className="h-screen flex items-center justify-center bg-white">
-        <div className="animate-spin w-8 h-8 border-2 border-violet-500 border-t-transparent rounded-full" />
+        <div className="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full" />
       </div>
     );
   }
@@ -622,98 +603,27 @@ export default function Popup() {
   // ============================================================
   // 로그인 화면
   // ============================================================
+  // ============================================================
+  // 로그인 화면
+  // ============================================================
   if (!isAuthenticated) {
     return (
       <div className="h-screen flex flex-col bg-white overflow-hidden">
         <header className="flex-none flex items-center justify-between px-4 py-3 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-violet-500 flex items-center justify-center">
-              <ShoppingBag className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-lg font-bold text-violet-500">pockest</span>
+          <div className="flex items-center">
+            <img src="/logo.svg" alt="Pockest" className="h-6 w-auto" />
           </div>
           <button onClick={handleClose} className="p-1 hover:bg-gray-100 rounded-lg">
             <X className="w-5 h-5 text-gray-400" />
           </button>
         </header>
 
-        <div className="flex-1 flex flex-col items-center justify-center p-6">
-          <div className="w-16 h-16 rounded-2xl bg-violet-100 flex items-center justify-center mb-4">
-            <ShoppingBag className="w-8 h-8 text-violet-500" />
-          </div>
-          <h1 className="text-xl font-bold text-gray-900 mb-1">Pockest</h1>
-          <p className="text-gray-500 text-sm mb-6 text-center">
-            {isLoginMode ? t('auth.login_title') : t('auth.signup_title')}
-          </p>
-
-          <form onSubmit={handleAuthSubmit} className="w-full space-y-3">
-            <input
-              type="email"
-              placeholder={t('auth.email_placeholder')}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-              required
-            />
-
-            <input
-              type="password"
-              placeholder={t('auth.password_placeholder')}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-              required
-            />
-
-            {authError && (
-              <p className="text-xs text-red-600 bg-red-50 p-3 rounded-xl">
-                {authError}
-              </p>
-            )}
-
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full h-12 bg-violet-500 hover:bg-violet-600 text-white font-semibold rounded-xl transition-colors disabled:opacity-50"
-            >
-              {isSubmitting ? t('auth.processing') : (isLoginMode ? t('auth.login_btn') : t('auth.signup_btn'))}
-            </button>
-          </form>
-
-          {/* 구분선 */}
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200"></div>
-            </div>
-            <div className="relative flex justify-center text-xs">
-              <span className="px-2 text-gray-400 bg-white">또는</span>
-            </div>
+        <div className="flex-1 overflow-y-auto p-6 scrollbar-hide">
+          <div className="flex flex-col items-center justify-center mb-6">
+            <img src="/logo.svg" alt="Pockest" className="w-[120px] h-auto object-contain" />
           </div>
 
-          {/* 구글 로그인 버튼 */}
-          <button
-            type="button"
-            onClick={signInWithGoogle}
-            className="w-full flex items-center justify-center h-11 px-4 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl shadow-sm hover:bg-gray-50 transition-all"
-          >
-            <img
-              className="w-4 h-4 mr-2"
-              src="https://www.svgrepo.com/show/475656/google-color.svg"
-              alt="Google"
-            />
-            Google 계정으로 계속하기
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setIsLoginMode(!isLoginMode);
-              clearError();
-            }}
-            className="mt-4 text-sm text-violet-500 hover:text-violet-600 font-medium"
-          >
-            {isLoginMode ? t('auth.signup_link') : t('auth.login_link')}
-          </button>
+          <AuthForms />
         </div>
       </div>
     );
@@ -760,13 +670,13 @@ export default function Popup() {
         </div>
       ) : pocketsLoading ? (
         <div className="flex flex-col items-center justify-center py-12 gap-3">
-          <div className="animate-spin w-8 h-8 border-3 border-violet-500 border-t-transparent rounded-full" />
+          <div className="animate-spin w-8 h-8 border-3 border-primary-500 border-t-transparent rounded-full" />
           <p className="text-sm text-gray-500">{t('popup.loading_data')}</p>
         </div>
       ) : status === 'scraping' ? (
         <div className="flex-none px-4 py-4 bg-gray-50 border-b border-gray-100">
           <div className="flex items-center justify-center gap-2">
-            <div className="animate-spin w-4 h-4 border-2 border-violet-500 border-t-transparent rounded-full" />
+            <div className="animate-spin w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full" />
             <span className="text-sm text-gray-500">{t('popup.fetching_product')}</span>
           </div>
         </div>
@@ -834,11 +744,11 @@ export default function Popup() {
             <div className="flex-1 min-w-0 flex flex-col justify-between h-24 py-0.5">
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <p className="text-[11px] text-[#7747B5] font-bold">{productData.mallName}</p>
+                  <p className="text-[11px] text-[#7548B8] font-bold">{productData.mallName}</p>
                   {!isEditingTitle && (
                     <button
                       onClick={handleStartEditTitle}
-                      className="px-2 py-0.5 text-[10px] text-[#7747B5] bg-violet-50 hover:bg-violet-100 rounded-full transition-colors font-medium"
+                      className="px-2 py-0.5 text-[10px] text-[#7548B8] bg-primary-50 hover:bg-primary-100 rounded-full transition-colors font-medium"
                     >
                       edit
                     </button>
@@ -854,7 +764,7 @@ export default function Popup() {
                     onChange={(e) => setEditedTitle(e.target.value)}
                     onBlur={handleSaveTitle}
                     onKeyDown={handleTitleKeyDown}
-                    className="w-full text-sm font-medium text-gray-900 border border-violet-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-violet-400 bg-white"
+                    className="w-full text-sm font-medium text-gray-900 border border-primary-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-primary-400 bg-white"
                   />
                 ) : (
                   <p
@@ -877,7 +787,7 @@ export default function Popup() {
                     onBlur={handleSavePrice}
                     onKeyDown={handlePriceKeyDown}
                     placeholder="0"
-                    className="w-full border-b-2 border-[#7747B5] focus:outline-none text-lg font-bold text-gray-900 bg-transparent p-0"
+                    className="w-full border-b-2 border-[#7548B8] focus:outline-none text-lg font-bold text-gray-900 bg-transparent p-0"
                     autoFocus
                   />
                 ) : (
@@ -908,7 +818,7 @@ export default function Popup() {
               placeholder="포켓 검색"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-10 pl-10 pr-4 bg-white border border-gray-200 rounded-full text-sm focus:outline-none focus:border-[#7747B5] transition-colors shadow-sm"
+              className="w-full h-10 pl-10 pr-4 bg-white border border-gray-200 rounded-full text-sm focus:outline-none focus:border-[#7548B8] transition-colors shadow-sm"
             />
             <div className="absolute left-3.5 top-1/2 -translate-y-1/2">
               <img src="/icon_search.svg" alt="Search" className="w-4 h-4 opacity-50" />
@@ -921,24 +831,24 @@ export default function Popup() {
             onClick={() => setActiveTab('pocket')}
             className={cn(
               "flex-1 py-3 text-sm font-bold transition-colors relative",
-              activeTab === 'pocket' ? "text-[#7747B5]" : "text-gray-400"
+              activeTab === 'pocket' ? "text-[#7548B8]" : "text-gray-400"
             )}
           >
             Pocket
             {activeTab === 'pocket' && (
-              <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#7747B5]" />
+              <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#7548B8]" />
             )}
           </button>
           <button
             onClick={() => setActiveTab('today')}
             className={cn(
               "flex-1 py-3 text-sm font-bold transition-colors relative",
-              activeTab === 'today' ? "text-[#7747B5]" : "text-gray-400"
+              activeTab === 'today' ? "text-[#7548B8]" : "text-gray-400"
             )}
           >
             Today
             {activeTab === 'today' && (
-              <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#7747B5]" />
+              <div className="absolute bottom-0 left-0 w-full h-[2px] bg-[#7548B8]" />
             )}
           </button>
         </div>
@@ -948,7 +858,7 @@ export default function Popup() {
       <div className="flex-1 overflow-y-auto p-5 space-y-2 bg-gray-50/50">
         {pocketsLoading ? (
           <div className="flex items-center justify-center py-10">
-            <div className="animate-spin w-6 h-6 border-2 border-[#7747B5] border-t-transparent rounded-full" />
+            <div className="animate-spin w-6 h-6 border-2 border-[#7548B8] border-t-transparent rounded-full" />
           </div>
         ) : activeTab === 'pocket' ? (
           // Pocket 탭: 폴더 목록
@@ -957,7 +867,7 @@ export default function Popup() {
               <div
                 key={pocket.id}
                 onClick={() => openDashboard(pocket.id)}
-                className="group flex items-center justify-between p-3 bg-white rounded-2xl border border-transparent hover:border-[#7747B5]/30 hover:shadow-md transition-all cursor-pointer"
+                className="group flex items-center justify-between p-3 bg-white rounded-2xl border border-transparent hover:border-[#7548B8]/30 hover:shadow-md transition-all cursor-pointer"
               >
                 <div className="flex items-center gap-3 overflow-hidden">
                   <div className="w-10 h-10 flex-shrink-0">
@@ -973,7 +883,7 @@ export default function Popup() {
                     e.stopPropagation();
                     handleSaveToPocket(pocket.id);
                   }}
-                  className="px-4 py-2 bg-gray-50 text-gray-500 text-sm font-bold rounded-full group-hover:bg-[#7747B5] group-hover:text-white transition-colors"
+                  className="px-4 py-2 bg-gray-50 text-gray-500 text-sm font-bold rounded-full group-hover:bg-[#7548B8] group-hover:text-white transition-colors"
                 >
                   담기
                 </button>
@@ -1037,14 +947,14 @@ export default function Popup() {
                   handleCreatePocket();
                 }
               }}
-              className="flex-1 px-3 py-2.5 border border-violet-200 rounded-xl text-sm focus:outline-none focus:border-violet-400"
+              className="flex-1 px-3 py-2.5 border border-primary-200 rounded-xl text-sm focus:outline-none focus:border-primary-400"
               autoFocus
             />
             <button
               type="button"
               onClick={(e) => handleCreatePocket(e)}
               disabled={!newPocketName.trim() || isCreating}
-              className="p-2.5 bg-violet-500 text-white rounded-xl hover:bg-violet-600 disabled:opacity-50 transition-colors"
+              className="p-2.5 bg-primary-500 text-white rounded-xl hover:bg-primary-600 disabled:opacity-50 transition-colors"
             >
               {isCreating ? (
                 <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
@@ -1067,24 +977,20 @@ export default function Popup() {
           <button
             type="button"
             onClick={() => setIsCreatingPocket(true)}
-            className="w-full h-11 bg-violet-500 hover:bg-violet-600 text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors shadow-lg shadow-violet-200"
+            className="w-full h-11 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors shadow-lg shadow-primary-200"
           >
             <span className="text-sm">{t('popup.create_pocket')}</span>
             <Edit3 className="w-3.5 h-3.5" />
           </button>
         )}
       </div>
-
-      {/* Toast 알림 */}
-      {
-        toast && (
-          <Toast
-            message={toast.message}
-            type={toast.type}
-            onClose={hideToast}
-          />
-        )
-      }
-    </div >
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={hideToast}
+        />
+      )}
+    </div>
   );
 }

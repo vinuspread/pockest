@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { usePocketStore } from '@/store/usePocketStore';
 
 /**
- * 폴더(Pocket) 관련 커스텀 훅
+ * 포켓(Pocket) 관련 커스텀 훅
  */
 export function usePockets() {
   const {
@@ -14,6 +14,7 @@ export function usePockets() {
     updatePocket,
     deletePocket,
     selectPocket,
+    togglePublicPocket, // New
   } = usePocketStore();
 
   // 초기 로드 제거 (부모 컴포넌트에서 인증 후 명시적으로 호출)
@@ -21,15 +22,15 @@ export function usePockets() {
   //   fetchPockets();
   // }, []);
 
-  // 기본 폴더 찾기
+  // 기본 포켓 찾기
   const defaultPocket = pockets.find((p) => p.is_default);
 
-  // 현재 선택된 폴더
+  // 현재 선택된 포켓
   const selectedPocket = selectedPocketId
     ? pockets.find((p) => p.id === selectedPocketId)
     : null;
 
-  // 새 폴더 생성 후 선택
+  // 새 포켓 생성 후 선택
   const createAndSelect = useCallback(
     async (name: string) => {
       const pocket = await createPocket(name);
@@ -41,7 +42,7 @@ export function usePockets() {
     [createPocket, selectPocket]
   );
 
-  // 폴더 이름 변경
+  // 포켓 이름 변경
   const rename = useCallback(
     async (id: string, newName: string) => {
       await updatePocket(id, newName);
@@ -49,7 +50,7 @@ export function usePockets() {
     [updatePocket]
   );
 
-  // 폴더 삭제 (기본 폴더는 삭제 불가)
+  // 포켓 삭제 (기본 포켓은 삭제 불가)
   const remove = useCallback(
     async (id: string) => {
       const pocket = pockets.find((p) => p.id === id);
@@ -78,8 +79,9 @@ export function usePockets() {
     rename,
     remove,
     select: selectPocket,
+    togglePublic: togglePublicPocket, // New
 
-    // 모든 폴더 보기 (선택 해제)
+    // 모든 포켓 보기 (선택 해제)
     selectAll: () => selectPocket(null),
   };
 }

@@ -57,9 +57,9 @@ export default function Welcome() {
                             <span className="text-primary-600 font-bold">3</span>
                         </div>
                         <div>
-                            <h3 className="font-bold text-gray-900 mb-1">폴더 관리</h3>
+                            <h3 className="font-bold text-gray-900 mb-1">포켓 관리</h3>
                             <p className="text-sm text-gray-500 leading-relaxed">
-                                나만의 폴더를 만들어<br />
+                                나만의 포켓을 만들어<br />
                                 위시리스트를 깔끔하게 정리하세요.
                             </p>
                         </div>

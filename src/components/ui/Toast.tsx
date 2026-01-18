@@ -40,12 +40,12 @@ export function Toast({ message, type = 'success', duration = 3000, onClose }: T
     }, duration);
 
     return () => clearTimeout(timer);
-  }, [duration, onClose]);
+  }, [duration, onClose, message]);
 
   return (
     <div
       className={cn(
-        'fixed bottom-4 left-1/2 -translate-x-1/2 z-50',
+        'fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999]',
         'flex items-center gap-3 px-4 py-3 rounded-lg border shadow-lg',
         'transition-all duration-200',
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',

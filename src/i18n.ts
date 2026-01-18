@@ -5,27 +5,21 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 // 언어 리소스 import
 import ko from './locales/ko.json';
 import en from './locales/en.json';
-import ja from './locales/ja.json';
-import zh from './locales/zh.json';
 
 // 지원 언어 목록
-export const supportedLanguages = ['ko', 'en', 'ja', 'zh'] as const;
+export const supportedLanguages = ['ko', 'en'] as const;
 export type SupportedLanguage = typeof supportedLanguages[number];
 
 // 언어별 표시 이름
 export const languageNames: Record<SupportedLanguage, string> = {
   ko: '한국어',
   en: 'English',
-  ja: '日本語',
-  zh: '中文',
 };
 
 // 리소스 번들
 const resources = {
   ko: { translation: ko },
   en: { translation: en },
-  ja: { translation: ja },
-  zh: { translation: zh },
 };
 
 // i18n 초기화
@@ -39,7 +33,7 @@ i18n
     resources,
     fallbackLng: 'en', // 기본 언어 (지원하지 않는 언어일 때)
     supportedLngs: supportedLanguages,
-    
+
     // 언어 감지 설정
     detection: {
       // 감지 순서: localStorage → navigator → htmlTag

@@ -27,20 +27,20 @@ export function PocketThumbnail({ images = [], className }: PocketThumbnailProps
 
     if (count === 1) {
         return (
-            <div className={cn("w-full h-full", className)}>
-                <img src={displayImages[0]} alt="" className="w-full h-full object-cover" />
+            <div className={cn("w-full h-full rounded-[12px] overflow-hidden", className)}>
+                <img src={displayImages[0]} alt="" loading="lazy" className="w-full h-full object-cover" />
             </div>
         );
     }
 
     if (count === 2) {
         return (
-            <div className={cn("w-full h-full flex", className)}>
-                <div className="w-1/2 h-full border-r border-white/50">
-                    <img src={displayImages[0]} alt="" className="w-full h-full object-cover" />
+            <div className={cn("w-full h-full grid grid-cols-2 gap-0.5 bg-gray-100 rounded-[12px] overflow-hidden", className)}>
+                <div className="relative w-full h-full">
+                    <img src={displayImages[0]} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
                 </div>
-                <div className="w-1/2 h-full">
-                    <img src={displayImages[1]} alt="" className="w-full h-full object-cover" />
+                <div className="relative w-full h-full">
+                    <img src={displayImages[1]} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
                 </div>
             </div>
         );
@@ -48,16 +48,16 @@ export function PocketThumbnail({ images = [], className }: PocketThumbnailProps
 
     if (count === 3) {
         return (
-            <div className={cn("w-full h-full flex", className)}>
-                <div className="w-1/2 h-full border-r border-white/50">
-                    <img src={displayImages[0]} alt="" className="w-full h-full object-cover" />
+            <div className={cn("w-full h-full grid grid-cols-2 gap-0.5 bg-gray-100 rounded-[12px] overflow-hidden", className)}>
+                <div className="relative w-full h-full row-span-2">
+                    <img src={displayImages[0]} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
                 </div>
-                <div className="w-1/2 h-full flex flex-col">
-                    <div className="h-1/2 w-full border-b border-white/50">
-                        <img src={displayImages[1]} alt="" className="w-full h-full object-cover" />
+                <div className="grid grid-rows-2 gap-0.5 h-full">
+                    <div className="relative w-full h-full">
+                        <img src={displayImages[1]} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
                     </div>
-                    <div className="h-1/2 w-full">
-                        <img src={displayImages[2]} alt="" className="w-full h-full object-cover" />
+                    <div className="relative w-full h-full">
+                        <img src={displayImages[2]} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
                     </div>
                 </div>
             </div>
@@ -66,18 +66,18 @@ export function PocketThumbnail({ images = [], className }: PocketThumbnailProps
 
     // 4 or more
     return (
-        <div className={cn("w-full h-full grid grid-cols-2", className)}>
-            <div className="border-r border-b border-white/50">
-                <img src={displayImages[0]} alt="" className="w-full h-full object-cover" />
+        <div className={cn("w-full h-full grid grid-cols-2 grid-rows-2 gap-0.5 bg-gray-100 rounded-[12px] overflow-hidden", className)}>
+            <div className="relative w-full h-full">
+                <img src={displayImages[0]} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
             </div>
-            <div className="border-b border-white/50">
-                <img src={displayImages[1]} alt="" className="w-full h-full object-cover" />
+            <div className="relative w-full h-full">
+                <img src={displayImages[1]} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
             </div>
-            <div className="border-r border-white/50">
-                <img src={displayImages[2]} alt="" className="w-full h-full object-cover" />
+            <div className="relative w-full h-full">
+                <img src={displayImages[2]} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
             </div>
-            <div>
-                <img src={displayImages[3]} alt="" className="w-full h-full object-cover" />
+            <div className="relative w-full h-full">
+                <img src={displayImages[3]} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
             </div>
         </div>
     );

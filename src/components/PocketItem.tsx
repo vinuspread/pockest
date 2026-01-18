@@ -5,18 +5,18 @@ import type { PocketWithCount } from '@/types';
 
 interface PocketItemProps {
   pocket: PocketWithCount;
-  
+
   // Popup용: 상품 저장 기능
   onSave?: (pocketId: string) => void;
   isSelected?: boolean;
   isSaving?: boolean;
   showSaveButton?: boolean;
   isPopup?: boolean;
-  
+
   // Sidebar용: 대시보드 이동
   onClick?: (pocketId: string) => void;
   isActive?: boolean;
-  
+
   // 공통
   className?: string;
 }
@@ -60,8 +60,8 @@ export function PocketItem({
       onClick={handleClick}
       className={cn(
         'group relative flex items-center gap-3 px-4 py-2.5 rounded-lg cursor-pointer transition-colors',
-        isActive 
-          ? 'bg-violet-50 text-violet-700' 
+        isActive
+          ? 'bg-primary-50 text-primary-700'
           : 'hover:bg-gray-50',
         className
       )}
@@ -69,10 +69,10 @@ export function PocketItem({
       {/* 썸네일 - 좌측 고정, 작게 */}
       <div className="w-10 h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
         {thumbnails.length > 0 && thumbnails[0] ? (
-          <img 
-            src={thumbnails[0]} 
-            alt="" 
-            className="w-full h-full object-cover" 
+          <img
+            src={thumbnails[0]}
+            alt=""
+            className="w-full h-full object-cover"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
@@ -84,7 +84,7 @@ export function PocketItem({
       {/* 포켓명 - 중앙 (flex-1으로 남은 공간 차지) */}
       <p className={cn(
         'flex-1 min-w-0 font-medium text-sm truncate',
-        isActive ? 'text-violet-700' : 'text-gray-900'
+        isActive ? 'text-primary-700' : 'text-gray-900'
       )}>
         {pocket.name}
       </p>
@@ -96,7 +96,7 @@ export function PocketItem({
         </span>
       )}
 
-      {/* 기본 폴더 표시 (Sidebar용) */}
+      {/* 기본 포켓 표시 (Sidebar용) */}
       {!showSaveButton && pocket.is_default && (
         <span className="text-xs text-gray-400 flex-shrink-0 ml-2">기본</span>
       )}
@@ -105,7 +105,7 @@ export function PocketItem({
       {showSaveButton && onSave && (
         <div className="ml-auto flex-shrink-0">
           {isSaving && isSelected ? (
-            <div className="animate-spin w-4 h-4 border-2 border-violet-500 border-t-transparent rounded-full" />
+            <div className="animate-spin w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full" />
           ) : (
             <button
               onClick={handleSaveClick}
@@ -115,7 +115,7 @@ export function PocketItem({
                 'pointer-events-none group-hover:pointer-events-auto',
                 'transition-all duration-200',
                 isSelected
-                  ? 'bg-violet-600 text-white shadow-md'
+                  ? 'bg-primary-600 text-white shadow-md'
                   : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
               )}
             >

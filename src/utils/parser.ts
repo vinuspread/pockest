@@ -591,6 +591,36 @@ export function parseProductFromPage(doc: Document = document): ProductData {
 }
 
 /**
+ * 비동기 파서 (SPA 지원): 재시도 로직 포함
+ */
+export async function parseProductWithRetry(
+  doc: Document = document,
+  maxRetries: number = 5,
+  intervalMs: number = 800
+): Promise<ProductData> {
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+  for (let i = 0; i < maxRetries; i++) {
+    const data = parseProductFromPage(doc);
+
+    // 성공 조건: 가격과 이미지가 모두 있으면 즉시 반환
+    if (data.price !== null && data.imageUrl) {
+      return data;
+    }
+
+    // 마지막 시도면 그냥 반환
+    if (i === maxRetries - 1) {
+      return data;
+    }
+
+    // 대기 후 재시도
+    await sleep(intervalMs);
+  }
+
+  return parseProductFromPage(doc);
+}
+
+/**
  * 페이지가 상품 페이지인지 간단히 판단
  */
 export function isProductPage(doc: Document = document): boolean {

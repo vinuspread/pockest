@@ -1,18 +1,24 @@
+import { LogOut, Folder, ShieldCheck } from 'lucide-react';
 import { cn } from '@/utils';
+import { useAuth } from '@/hooks';
+import { useNavigate } from 'react-router-dom';
+
+// ... (imports)
+
 import type { PocketWithCount } from '@/types';
 
 interface SidebarProps {
-  pockets: PocketWithCount[];
-  selectedPocketId: string | null;
-  onSelectPocket: (id: string | null) => void;
-  onCreatePocket: () => void;
-  currentView: 'all' | 'today' | 'pinned' | 'trash' | 'pocket' | 'folders';
+  currentView: 'all' | 'today' | 'pinned' | 'trash' | 'folders' | 'pocket' | 'admin';
   onViewChange: (view: 'all' | 'today' | 'pinned' | 'trash') => void;
   allItemsCount?: number;
   todayItemsCount?: number;
   pinnedItemsCount?: number;
   trashItemsCount?: number;
+  pockets?: PocketWithCount[];
+  selectedPocketId?: string | null;
+  onSelectPocket?: (id: string) => void;
   className?: string;
+  onClose?: () => void;
 }
 
 interface NavItemProps {
@@ -21,34 +27,21 @@ interface NavItemProps {
   active?: boolean;
   onClick?: () => void;
   badge?: number;
-  variant?: 'primary' | 'secondary' | 'action'; // primary: 상단메뉴, secondary: 폴더, action: 하단메뉴
+  variant?: 'primary' | 'secondary' | 'action';
 }
 
 function NavItem({ iconSrc, label, active, onClick, badge, variant = 'secondary' }: NavItemProps) {
-  // 스타일 정의
   const baseStyles = 'w-full flex items-center gap-1 px-2 py-2 rounded-lg text-sm transition-all duration-200 group';
 
-  // 1. 모든상품, 오늘담은상품, 즐겨찾기 (Primary)
-  // - 기본: 포인트 컬러 (#7747B5)
-  // - 폰트: 16px, Bold (text-base)
-  // - 레터스페이싱: -2%
-  // - 마우스 오버: bg-purple-800/5 (bg-[#7747B5]/5)
   const primaryStyles = cn(
-    'text-[#7747B5] font-bold text-base tracking-[-0.02em]',
-    active ? 'bg-[#7747B5]/5' : 'hover:bg-[#7747B5]/5'
+    'text-[#7548B8] font-bold text-base tracking-[-0.02em]',
+    active ? 'bg-[#7548B8]/5' : 'hover:bg-[#7548B8]/5'
   );
 
-  // 2. 포켓 (Secondary)
-  // - 기본: #999999
-  // - 마우스 오버: #333333 + 연보라 배경 (#F3F0FA)
-  // - 활성: #333333 + 연보라 배경
   const secondaryStyles = cn(
     active ? 'bg-[#F3F0FA] text-[#333333] font-bold' : 'text-[#999999] hover:text-[#333333] hover:bg-[#F3F0FA]'
   );
 
-  // 3. 하단 메뉴 (Action - 만들기, 휴지통)
-  // - 기본: #999999
-  // - 마우스 오버: #333333
   const actionStyles = cn(
     active ? 'bg-[#F3F0FA] text-[#333333] font-bold' : 'text-[#999999] hover:text-[#333333] hover:bg-[#F3F0FA]'
   );
@@ -67,8 +60,8 @@ function NavItem({ iconSrc, label, active, onClick, badge, variant = 'secondary'
         alt={label}
         className={cn(
           "flex-shrink-0 transition-opacity",
-          variant === 'primary' ? "w-5 h-5" : "w-5 h-5", // 아이콘 크기 통일
-          variant === 'action' && "brightness-0 opacity-40" // action 아이콘: 흰색→검은색 변환 후 40% 투명도
+          variant === 'primary' ? "w-5 h-5" : "w-5 h-5",
+          variant === 'action' && "brightness-0 opacity-40"
         )}
       />
       <span className="flex-1 text-left">{label}</span>
@@ -85,22 +78,39 @@ function NavItem({ iconSrc, label, active, onClick, badge, variant = 'secondary'
 }
 
 export function Sidebar({
-  pockets,
-  selectedPocketId,
-  onSelectPocket,
-  onCreatePocket,
   currentView,
   onViewChange,
   allItemsCount = 0,
   todayItemsCount = 0,
   pinnedItemsCount = 0,
-  trashItemsCount = 0, // 🗑️ 기본값 0
+  trashItemsCount = 0,
+  pockets = [],
+  selectedPocketId,
+  onSelectPocket,
   className,
+  onClose,
 }: SidebarProps) {
+  const { signOut, user } = useAuth();
+  const navigate = useNavigate();
+
+  // Admin Check
+  const adminEmails = import.meta.env.VITE_ADMIN_EMAILS?.split(',') || [];
+  const isAdmin = user?.email && adminEmails.map((e: string) => e.trim()).includes(user.email);
+
+  const handleMenuClick = (view: 'all' | 'today' | 'pinned' | 'trash') => {
+    onViewChange(view);
+    onClose?.();
+  };
+
+  const handlePocketClick = (id: string) => {
+    onSelectPocket?.(id);
+    onClose?.();
+  };
+
   return (
     <aside
       className={cn(
-        'w-64 h-full bg-white border-r border-gray-100 flex flex-col p-5',
+        'w-full h-full bg-white flex flex-col p-5', // Changed w-64 to w-full
         className
       )}
     >
@@ -111,10 +121,7 @@ export function Sidebar({
           label="모든 상품"
           active={currentView === 'all'}
           variant="primary"
-          onClick={() => {
-            onSelectPocket(null);
-            onViewChange('all');
-          }}
+          onClick={() => handleMenuClick('all')}
           badge={allItemsCount}
         />
         <NavItem
@@ -122,10 +129,7 @@ export function Sidebar({
           label="오늘 담은 상품"
           active={currentView === 'today'}
           variant="primary"
-          onClick={() => {
-            onSelectPocket(null);
-            onViewChange('today');
-          }}
+          onClick={() => handleMenuClick('today')}
           badge={todayItemsCount}
         />
         <NavItem
@@ -133,76 +137,91 @@ export function Sidebar({
           label="즐겨찾기"
           active={currentView === 'pinned'}
           variant="primary"
-          onClick={() => {
-            onSelectPocket(null);
-            onViewChange('pinned');
-          }}
+          onClick={() => handleMenuClick('pinned')}
           badge={pinnedItemsCount}
-        />
-      </nav>
-
-      {/* 구분선 */}
-      <div className="my-5 flex-shrink-0">
-        <div className="h-px bg-[#F3F3F3]" />
-      </div>
-
-      {/* 2. 포켓 리스트 Section */}
-      <div className="flex-1 overflow-y-auto space-y-1 min-h-0">
-        {/* ... */}
-        {pockets.filter(p => p.is_default).map((pocket) => (
-          <NavItem
-            key={pocket.id}
-            iconSrc="/icon_folder_default.svg"
-            label={pocket.name}
-            active={selectedPocketId === pocket.id}
-            variant="secondary"
-            onClick={() => onSelectPocket(pocket.id)}
-            badge={pocket.item_count || 0}
-          />
-        ))}
-
-        {pockets.filter(p => !p.is_default).map((pocket) => (
-          <NavItem
-            key={pocket.id}
-            iconSrc="/icon_folder_default.svg"
-            label={pocket.name}
-            active={selectedPocketId === pocket.id}
-            variant="secondary"
-            onClick={() => onSelectPocket(pocket.id)}
-            badge={pocket.item_count || 0}
-          />
-        ))}
-      </div>
-
-      {/* 구분선 */}
-      <div className="my-5 flex-shrink-0">
-        <div className="h-px bg-[#F3F3F3]" />
-      </div>
-
-      {/* 3. 하단 액션 Section */}
-      <div className="space-y-1 flex-shrink-0">
-        <NavItem
-          iconSrc="/icon_btn_folder_add.svg"
-          label="포켓 만들기"
-          active={false}
-          variant="action"
-          onClick={onCreatePocket}
         />
         <NavItem
           iconSrc="/icon_trash.svg"
           label="휴지통"
           active={currentView === 'trash'}
-          variant="action"
-          onClick={() => {
-            onSelectPocket(null);
-            onViewChange('trash');
-          }}
-          badge={trashItemsCount} // ✅ 실제 데이터 연결 완료
+          variant="primary"
+          onClick={() => handleMenuClick('trash')}
+          badge={trashItemsCount}
         />
+      </nav>
+
+      {/* Admin Link (Conditional) */}
+      {isAdmin && (
+        <div className="px-3 mt-4 pt-4 border-t border-gray-100">
+          <NavItem
+            iconSrc="https://cdn-icons-png.flaticon.com/512/3524/3524752.png" // Shield Icon placeholder or use Lucide
+            label="관리자 페이지"
+            active={currentView === 'admin'}
+            onClick={() => {
+              navigate('/admin');
+              onClose?.();
+            }}
+            variant="action"
+          />
+        </div>
+      )}
+
+      {/* User Profile & Logout */}
+      <div className="my-5 flex-shrink-0">
+        <div className="h-px bg-[#F3F3F3]" />
+      </div>
+
+      {/* 2. 내 포켓 목록 Section (Scrollable) */}
+      <div className="flex-1 overflow-y-auto min-h-0 mb-4">
+        <h3 className="px-2 text-xs font-semibold text-gray-400 mb-2">내 포켓</h3>
+        <div className="space-y-1">
+          {pockets.map((pocket) => (
+            <button
+              key={pocket.id}
+              onClick={() => handlePocketClick(pocket.id)}
+              className={cn(
+                'w-full flex items-center gap-1 px-2 py-2 rounded-lg text-sm transition-all duration-200 group', // gap-1 to match NavItem
+                selectedPocketId === pocket.id
+                  ? 'bg-[#7548B8]/5 text-[#7548B8] font-bold'
+                  : 'text-[#666666] hover:bg-[#F3F0FA] hover:text-[#333333]'
+              )}
+            >
+              {/* Folder Icon for alignment */}
+              <Folder className={cn(
+                "w-5 h-5 flex-shrink-0",
+                selectedPocketId === pocket.id ? "fill-[#7548B8]/20 stroke-[#7548B8]" : "fill-gray-100 stroke-gray-400"
+              )} />
+
+              <span className="flex-1 text-left truncate">{pocket.name}</span>
+              <span className={cn(
+                "text-xs",
+                selectedPocketId === pocket.id ? "text-[#7548B8]" : "text-[#999999]"
+              )}>
+                {pocket.item_count || 0}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 구분선 */}
+      <div className="my-1 flex-shrink-0">
+        <div className="h-px bg-[#F3F3F3]" />
+      </div>
+
+      <div className="mt-auto">
+        <button
+          onClick={signOut}
+          className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 transition-colors"
+        >
+          <LogOut className="w-5 h-5" />
+          <span>로그아웃</span>
+        </button>
       </div>
     </aside>
   );
 }
+
 
 
 

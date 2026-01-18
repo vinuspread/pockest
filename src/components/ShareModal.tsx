@@ -13,9 +13,22 @@ interface ShareModalProps {
     totalPrice: number;
     userName?: string;
     shareUrl: string;
+    pocketId?: string; // New
+    isPublic?: boolean; // New
+    onTogglePublic?: (isPublic: boolean) => void; // New
 }
 
-export function ShareModal({ isOpen, onClose, pocketName, items, totalPrice, shareUrl }: ShareModalProps) {
+export function ShareModal({
+    isOpen,
+    onClose,
+    pocketName,
+    items,
+    totalPrice,
+    shareUrl,
+    pocketId, // New
+    isPublic = false, // New
+    onTogglePublic // New
+}: ShareModalProps) {
     const cardRef = useRef<HTMLDivElement>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [copied, setCopied] = useState(false);
@@ -66,8 +79,8 @@ export function ShareModal({ isOpen, onClose, pocketName, items, totalPrice, sha
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
                     <div className="flex items-center gap-2">
-                        <div className="p-2 bg-violet-100 rounded-lg">
-                            <Share2 className="w-5 h-5 text-violet-600" />
+                        <div className="p-2 bg-primary-100 rounded-lg">
+                            <Share2 className="w-5 h-5 text-primary-600" />
                         </div>
                         <h2 className="text-lg font-bold text-gray-900">포켓 공유하기</h2>
                     </div>
@@ -83,7 +96,7 @@ export function ShareModal({ isOpen, onClose, pocketName, items, totalPrice, sha
                         <div className="relative shadow-2xl rounded-2xl overflow-hidden transform transition-transform hover:scale-[1.02] duration-300">
                             <div
                                 ref={cardRef}
-                                className="w-[320px] bg-gradient-to-br from-violet-600 to-indigo-700 text-white p-6 relative overflow-hidden"
+                                className="w-[320px] bg-gradient-to-br from-primary-600 to-indigo-700 text-white p-6 relative overflow-hidden"
                             >
                                 {/* Background Decor */}
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
@@ -98,7 +111,7 @@ export function ShareModal({ isOpen, onClose, pocketName, items, totalPrice, sha
                                     <h3 className="text-2xl font-bold leading-tight mb-1 drop-shadow-md">
                                         {pocketName}
                                     </h3>
-                                    <p className="text-violet-200 text-sm">
+                                    <p className="text-primary-200 text-sm">
                                         {items.length}개의 아이템 • {formatPrice(totalPrice)}
                                     </p>
                                 </div>
@@ -157,26 +170,49 @@ export function ShareModal({ isOpen, onClose, pocketName, items, totalPrice, sha
                 </div>
 
                 {/* Footer Actions */}
-                <div className="p-4 bg-white border-t border-gray-100 flex gap-3">
-                    <button
-                        onClick={handleCopyLink}
-                        className="flex-1 h-12 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
-                    >
-                        {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                        {copied ? '복사됨' : '링크 복사'}
-                    </button>
-                    <button
-                        onClick={handleDownloadImage}
-                        disabled={isGenerating}
-                        className="flex-[2] h-12 flex items-center justify-center gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-bold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 shadow-lg shadow-violet-200"
-                    >
-                        {isGenerating ? (
-                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                            <Download className="w-5 h-5" />
+                <div className="p-4 bg-white border-t border-gray-100 flex flex-col gap-3">
+                    {/* Public Toggle Switch */}
+                    {pocketId && onTogglePublic && ( // Only show if pocket exists (not Today/Favorites view)
+                        <div className="flex items-center justify-between px-2 py-1">
+                            <div className="flex flex-col">
+                                <span className="text-sm font-bold text-gray-900">링크로 공유하기</span>
+                                <span className="text-xs text-gray-500">활성화하면 누구나 이 링크로 포켓을 볼 수 있습니다.</span>
+                            </div>
+                            <button
+                                onClick={() => onTogglePublic(!isPublic)}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ${isPublic ? 'bg-primary-600' : 'bg-gray-200'}`}
+                            >
+                                <span
+                                    className={`${isPublic ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200`}
+                                />
+                            </button>
+                        </div>
+                    )}
+
+                    <div className="flex gap-3">
+                        {isPublic && (
+                            <button
+                                onClick={handleCopyLink}
+                                className="flex-1 h-12 flex items-center justify-center gap-2 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+                            >
+                                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                                {copied ? '복사됨' : '링크 복사'}
+                            </button>
                         )}
-                        이미지 저장
-                    </button>
+
+                        <button
+                            onClick={handleDownloadImage}
+                            disabled={isGenerating}
+                            className={`${isPublic ? 'flex-[2]' : 'flex-[1]'} h-12 flex items-center justify-center gap-2 bg-gradient-to-r from-primary-600 to-indigo-600 text-white font-bold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 shadow-lg shadow-primary-200`}
+                        >
+                            {isGenerating ? (
+                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <Download className="w-5 h-5" />
+                            )}
+                            이미지 저장
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

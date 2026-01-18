@@ -12,7 +12,7 @@ interface AuthState {
   // Actions
   initialize: () => Promise<void>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
-  signUpWithEmail: (email: string, password: string) => Promise<void>;
+  signUpWithEmail: (email: string, password: string, metaData?: { full_name?: string; gender?: string; age_group?: string }) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   withdraw: () => Promise<void>;
@@ -27,8 +27,10 @@ export const useAuthStore = create<AuthState>()(
       error: null,
 
       initialize: async () => {
+        console.log('[AuthStore] initialize: starting...');
         try {
           const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+          console.log('[AuthStore] initialize: getSession result', { session, sessionError });
 
           if (sessionError) {
             console.error('[Auth] Session error:', sessionError.message);
@@ -37,10 +39,11 @@ export const useAuthStore = create<AuthState>()(
           }
 
           if (session?.user) {
+            console.log('[AuthStore] initialize: user found, fetching profile');
             // profiles 테이블에서 추가 정보 가져오기
             const { data: profile, error: profileError } = await supabase
               .from('profiles')
-              .select('tier, affiliate_agreed')
+              .select('tier, affiliate_agreed, gender, age_group')
               .eq('id', session.user.id)
               .single();
 
@@ -48,7 +51,7 @@ export const useAuthStore = create<AuthState>()(
               console.warn('[Auth] Profile fetch warning:', profileError.message);
             }
 
-            const profileData = profile as Pick<Profile, 'tier' | 'affiliate_agreed'> | null;
+            const profileData = profile as Pick<Profile, 'tier' | 'affiliate_agreed' | 'gender' | 'age_group'> | null;
 
             set({
               user: {
@@ -56,15 +59,19 @@ export const useAuthStore = create<AuthState>()(
                 email: session.user.email || '',
                 tier: profileData?.tier || 'free',
                 affiliate_agreed: profileData?.affiliate_agreed ?? false,
+                gender: profileData?.gender,
+                age_group: profileData?.age_group,
                 user_metadata: session.user.user_metadata,
               },
               status: 'authenticated',
               error: null,
             });
+            console.log('[AuthStore] initialize: authenticated set');
             return;
           }
 
           set({ user: null, status: 'unauthenticated', error: null });
+          console.log('[AuthStore] initialize: unauthenticated set');
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
           console.error('[Auth] Initialize exception:', errorMessage);
@@ -83,24 +90,26 @@ export const useAuthStore = create<AuthState>()(
 
           if (error) {
             console.error('[Auth] SignIn error:', error.message);
+            const errorMsg = error.message === 'Invalid login credentials'
+              ? '이메일 또는 비밀번호가 올바르지 않습니다.'
+              : error.message;
+
             set({
               user: null,
               status: 'unauthenticated',
-              error: error.message === 'Invalid login credentials'
-                ? '이메일 또는 비밀번호가 올바르지 않습니다.'
-                : error.message,
+              error: errorMsg,
             });
-            return;
+            throw new Error(errorMsg);
           }
 
           if (data.user) {
             const { data: profile } = await supabase
               .from('profiles')
-              .select('tier, affiliate_agreed')
+              .select('tier, affiliate_agreed, gender, age_group')
               .eq('id', data.user.id)
               .single();
 
-            const profileData = profile as Pick<Profile, 'tier' | 'affiliate_agreed'> | null;
+            const profileData = profile as Pick<Profile, 'tier' | 'affiliate_agreed' | 'gender' | 'age_group'> | null;
 
             set({
               user: {
@@ -108,6 +117,8 @@ export const useAuthStore = create<AuthState>()(
                 email: data.user.email || '',
                 tier: profileData?.tier || 'free',
                 affiliate_agreed: profileData?.affiliate_agreed ?? false,
+                gender: profileData?.gender,
+                age_group: profileData?.age_group,
                 user_metadata: data.user.user_metadata,
               },
               status: 'authenticated',
@@ -125,13 +136,16 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      signUpWithEmail: async (email, password) => {
+      signUpWithEmail: async (email, password, metaData) => {
         set({ status: 'loading', error: null });
 
         try {
           const { data, error } = await supabase.auth.signUp({
             email,
             password,
+            options: {
+              data: metaData, // { full_name, gender, age_group }
+            },
           });
 
           if (error) {
@@ -149,7 +163,7 @@ export const useAuthStore = create<AuthState>()(
               status: 'unauthenticated',
               error: userFriendlyError,
             });
-            return;
+            throw new Error(userFriendlyError);
           }
 
           if (data.user) {
@@ -163,12 +177,23 @@ export const useAuthStore = create<AuthState>()(
               return;
             }
 
+            // profiles 테이블에 추가 정보 명시적 업데이트 (트리거가 기본값만 생성할 수 있으므로)
+            if (metaData?.gender || metaData?.age_group) {
+              await supabase.from('profiles').update({
+                gender: metaData.gender,
+                age_group: metaData.age_group,
+                updated_at: new Date().toISOString(),
+              }).eq('id', data.user.id);
+            }
+
             set({
               user: {
                 id: data.user.id,
                 email: data.user.email || '',
                 tier: 'free',
                 affiliate_agreed: false,
+                gender: metaData?.gender,
+                age_group: metaData?.age_group,
                 user_metadata: data.user.user_metadata,
               },
               status: 'authenticated',
@@ -192,11 +217,12 @@ export const useAuthStore = create<AuthState>()(
         try {
           // 1. 크롬 익스텐션 환경인지 확인
           const isExtension = typeof chrome !== 'undefined' && chrome.identity;
+          console.log('[AuthStore] signInWithGoogle: Starting...', { isExtension });
 
           if (isExtension) {
             // [Extension] chrome.identity 사용
             const redirectUrl = chrome.identity.getRedirectURL();
-            console.log('Using Extension Redirect URL:', redirectUrl);
+            console.log('[AuthStore] Using Extension Redirect URL:', redirectUrl);
 
             const { data, error } = await supabase.auth.signInWithOAuth({
               provider: 'google',
@@ -206,23 +232,48 @@ export const useAuthStore = create<AuthState>()(
               },
             });
 
-            if (error) throw error;
+            if (error) {
+              console.error('[AuthStore] signInWithOAuth error:', error);
+              throw error;
+            }
             if (!data?.url) throw new Error('No login URL returned');
 
-            const responseUrl = await chrome.identity.launchWebAuthFlow({
-              url: data.url,
-              interactive: true,
+            console.log('[AuthStore] Launching WebAuthFlow...', data.url);
+
+            // launchWebAuthFlow를 Promise로 감싸서 에러 핸들링 강화
+            const responseUrl = await new Promise<string | undefined>((resolve, reject) => {
+              chrome.identity.launchWebAuthFlow(
+                {
+                  url: data.url,
+                  interactive: true,
+                },
+                (response) => {
+                  if (chrome.runtime.lastError) {
+                    reject(new Error(chrome.runtime.lastError.message));
+                  } else {
+                    resolve(response);
+                  }
+                }
+              );
             });
 
-            if (!responseUrl) throw new Error('Login cancelled');
+            if (!responseUrl) throw new Error('Login cancelled or failed');
+            console.log('[AuthStore] Auth flow completed, URL:', responseUrl);
 
             const urlObj = new URL(responseUrl);
             const code = urlObj.searchParams.get('code');
+            const errorParam = urlObj.searchParams.get('error');
+
+            if (errorParam) {
+              throw new Error(`Auth Error: ${errorParam}`);
+            }
 
             if (code) {
+              console.log('[AuthStore] Exchanging code for session...');
               const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
               if (exchangeError) throw exchangeError;
             } else {
+              console.log('[AuthStore] Parsing hash for session...');
               const params = new URLSearchParams(urlObj.hash.substring(1));
               const access_token = params.get('access_token');
               const refresh_token = params.get('refresh_token');
@@ -252,12 +303,12 @@ export const useAuthStore = create<AuthState>()(
             return;
           }
 
-          console.log('Login Successful');
+          console.log('[AuthStore] Login Successful');
           await get().initialize();
 
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : '구글 로그인에 실패했습니다.';
-          console.error('Google Login Error:', errorMessage);
+          console.error('[AuthStore] Google Login Error:', errorMessage);
           set({
             user: null,
             status: 'unauthenticated',

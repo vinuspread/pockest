@@ -11,6 +11,8 @@ export interface User {
   email: string;
   tier: 'free' | 'premium';
   affiliate_agreed?: boolean;
+  gender?: string | null;
+  age_group?: string | null;
   user_metadata?: {
     avatar_url?: string;
     full_name?: string;
