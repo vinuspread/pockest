@@ -224,7 +224,6 @@ export default function Popup() {
         return;
       }
 
-      // 재시도 로직 추가 (Content Script가 로드될 때까지 대기)
       const sendMessageWithRetry = async (retries = 3, delay = 500) => {
         for (let i = 0; i < retries; i++) {
           try {
@@ -234,7 +233,11 @@ export default function Popup() {
                 { type: 'SCRAPE_PRODUCT' },
                 (response) => {
                   if (chrome.runtime.lastError) {
-                    console.warn(`[Popup] Retry ${i + 1}/${retries}:`, chrome.runtime.lastError.message);
+                    // Suppress 'Receiving end does not exist' noise as it's common on non-injected pages
+                    const msg = chrome.runtime.lastError.message;
+                    if (!msg?.includes('Receiving end does not exist')) {
+                      console.warn(`[Popup] Retry ${i + 1}/${retries}:`, msg);
+                    }
                     resolve(null);
                   } else {
                     resolve(response);
@@ -266,8 +269,7 @@ export default function Popup() {
           }
         }
 
-        // 모든 재시도 실패
-        console.warn('[Popup] All retries failed');
+        // 모든 재시도 실패 - 조용히 처리 (사용자에게는 에러 표시)
         setScrapeError(t('error.page_communication'));
         setStatus('error');
       };
