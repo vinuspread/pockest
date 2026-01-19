@@ -13,7 +13,7 @@ try {
     // CSP 설정 추가 (Manifest V3)
     // 'unsafe-inline' 제거 및 필요한 도메인 허용
     manifest.content_security_policy = {
-        extension_pages: "script-src 'self'; object-src 'self'",
+        extension_pages: "script-src 'self'; object-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://accounts.google.com;"
     };
 
     // 개발 환경 포트 허용 (HMR 등)

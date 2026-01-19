@@ -153,6 +153,16 @@ export default function Popup() {
     initAuth();
   }, []);
 
+  // Realtime Subscription
+  useEffect(() => {
+    if (isAuthenticated) {
+      usePocketStore.getState().initializeSubscription();
+    }
+    return () => {
+      usePocketStore.getState().unsubscribe();
+    };
+  }, [isAuthenticated]);
+
   // ============================================================
   // 로그인 상태 변화 감지 → 데이터 자동 로드 (핵심 수정!)
   // ============================================================
