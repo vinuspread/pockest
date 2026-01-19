@@ -37,6 +37,7 @@ export default function Dashboard() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isCreatePocketModalOpen, setIsCreatePocketModalOpen] = useState(false);
   const [isEditPocketModalOpen, setIsEditPocketModalOpen] = useState(false);
+  const [editingPocketId, setEditingPocketId] = useState<string | null>(null);
   const [isCompleteProfileModalOpen, setIsCompleteProfileModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true); // Prevent flicker
@@ -50,8 +51,6 @@ export default function Dashboard() {
     pockets,
     select: selectPocket,
     selectedPocketId,
-    createAndSelect,
-    rename,
     remove: deletePocket,
     togglePublic
   } = usePockets();
@@ -318,6 +317,11 @@ export default function Dashboard() {
     }
   };
 
+  const handleEditPocket = (id: string) => {
+    setEditingPocketId(id);
+    setIsEditPocketModalOpen(true);
+  };
+
   // Monetization Gate 핸들러
   const handleAgreeAffiliate = async () => {
     if (!user) return;
@@ -430,6 +434,13 @@ export default function Dashboard() {
                 selectedPocketId={selectedPocketId}
                 onSelectPocket={handleSelectPocket}
                 onClose={() => setIsMobileMenuOpen(false)}
+                onCreatePocket={() => setIsCreatePocketModalOpen(true)}
+                onEditPocket={handleEditPocket}
+                onDeletePocket={(id, name) => {
+                  if (confirm(`'${name}' 포켓을 삭제하시겠습니까?`)) {
+                    handleDeletePocket(id);
+                  }
+                }}
               />
             </div>
           </div>
@@ -474,7 +485,10 @@ export default function Dashboard() {
                     <Button
                       variant="secondary"
                       className="flex items-center gap-1.5 h-9 px-4 rounded-full text-sm font-medium text-gray-600 bg-gray-50 border-0 hover:bg-gray-100 hover:text-gray-900 transition-all"
-                      onClick={() => setIsEditPocketModalOpen(true)}
+                      onClick={() => {
+                        if (pocketId) setEditingPocketId(pocketId);
+                        setIsEditPocketModalOpen(true);
+                      }}
                     >
                       <Edit3 className="w-4 h-4" />
                       <span>수정</span>
@@ -558,12 +572,15 @@ export default function Dashboard() {
           onClose={() => setIsCreatePocketModalOpen(false)}
         />
 
-        {pocketId && (
+        {(pocketId || editingPocketId) && (
           <EditPocketModal
             isOpen={isEditPocketModalOpen}
-            onClose={() => setIsEditPocketModalOpen(false)}
-            pocketId={pocketId}
-            initialName={pockets.find(p => p.id === pocketId)?.name || ''}
+            onClose={() => {
+              setIsEditPocketModalOpen(false);
+              setEditingPocketId(null);
+            }}
+            pocketId={editingPocketId || pocketId || ''}
+            initialName={pockets.find(p => p.id === (editingPocketId || pocketId))?.name || ''}
           />
         )}
         {toast && (
