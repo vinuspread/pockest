@@ -21,8 +21,12 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["src/pages/content/index.tsx"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "src/pages/content/index.tsx"
+      ],
       "run_at": "document_idle"
     }
   ],
@@ -31,7 +35,6 @@
     "sidePanel",
     "storage",
     "tabs",
-    "scripting",
     "activeTab"
   ],
   "host_permissions": [
@@ -39,8 +42,13 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["assets/*", "src/pages/popup/index.html"],
-      "matches": ["<all_urls>"]
+      "resources": [
+        "assets/*",
+        "src/pages/popup/index.html"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
     }
   ]
 }

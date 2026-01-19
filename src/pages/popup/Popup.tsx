@@ -893,7 +893,7 @@ export default function Popup() {
 
       {/* 포켓 목록 영역 */}
       <div className="flex-1 overflow-y-auto p-5 space-y-2 bg-gray-50/50">
-        {pocketsLoading ? (
+        {pocketsLoading && pockets.length === 0 ? (
           <div className="flex items-center justify-center py-10">
             <div className="animate-spin w-6 h-6 border-2 border-[#7548B8] border-t-transparent rounded-full" />
           </div>

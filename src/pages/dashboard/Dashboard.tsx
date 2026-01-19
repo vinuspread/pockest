@@ -546,7 +546,7 @@ export default function Dashboard() {
                     onSelectPocket={handleSelectPocket}
                     onCreatePocket={() => setIsCreatePocketModalOpen(true)}
                   />
-                ) : itemsLoading || isInitialLoad ? (
+                ) : (itemsLoading && (!items || items.length === 0)) || isInitialLoad ? (
                   <div className="flex items-center justify-center py-20">
                     <div className="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full" />
                   </div>
