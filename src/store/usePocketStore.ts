@@ -188,7 +188,15 @@ export const usePocketStore = create<PocketState>((set, get) => ({
           get().fetchPockets(); // Refresh data
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log(`[PocketStore] 📡 Subscription status: ${status}`);
+        if (status === 'SUBSCRIBED') {
+          // Debug: Connection successful
+        }
+        if (status === 'CHANNEL_ERROR') {
+          console.error('[PocketStore] ❌ Realtime Channel Error - Check Supabase Realtime settings or Network/CSP');
+        }
+      });
 
     set({ subscription: channel });
   },
