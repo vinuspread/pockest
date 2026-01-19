@@ -15,7 +15,7 @@ interface PocketState {
   createPocket: (name: string) => Promise<PocketWithCount | null>;
   updatePocket: (id: string, name: string) => Promise<void>;
   togglePublicPocket: (id: string, isPublic: boolean) => Promise<void>;
-  deletePocket: (id: string) => Promise<void>;
+  deletePocket: (id: string) => Promise<boolean>;
   selectPocket: (id: string | null) => void;
 }
 
@@ -112,6 +112,9 @@ export const usePocketStore = create<PocketState>((set, get) => ({
   },
 
   deletePocket: async (id) => {
+    const previousPockets = get().pockets; // Backup for rollback
+    const previousSelected = get().selectedPocketId;
+
     // 1. Optimistic Update
     set((state) => ({
       pockets: state.pockets.filter((p) => p.id !== id),
@@ -121,29 +124,36 @@ export const usePocketStore = create<PocketState>((set, get) => ({
     try {
       const now = new Date().toISOString();
 
-      // 2. [Cascade] 해당 포켓의 모든 아이템도 Soft Delete (휴지통으로 이동)
-      await supabase
+      // 2. [Cascade] Soft delete items
+      const { error: itemsError } = await supabase
         .from('items')
         .update({ deleted_at: now })
         .eq('pocket_id', id)
-        .is('deleted_at', null); // 이미 삭제된 건 건드리지 않음
+        .is('deleted_at', null);
 
-      // 3. 포켓 Soft Delete
-      const { error } = await supabase
+      if (itemsError) throw itemsError;
+
+      // 3. Soft delete pocket
+      const { error: pocketError } = await supabase
         .from('pockets')
         .update({ deleted_at: now })
         .eq('id', id);
 
-      if (error) throw error;
+      if (pocketError) throw pocketError;
 
       console.log('[deletePocket] ✅ Soft deleted pocket and its items:', id);
-
-      // 🔥 [Sync] Ensure state is synchronized with server truth
-      await get().fetchPockets();
-    } catch (error) {
+      await get().fetchPockets(); // Sync
+      return true; // Success
+    } catch (error: any) {
       console.error('[deletePocket] ❌ Failed:', error);
-      // 롤백 로직이 복잡하므로 여기선 새로고침 유도 에러 메시지
-      set({ pocketsError: '포켓 삭제 실패. 새로고침 해주세요.' });
+
+      // 4. Rollback on failure
+      set({
+        pockets: previousPockets,
+        selectedPocketId: previousSelected,
+        pocketsError: '포켓 삭제 실패: ' + (error.message || 'Unknown error')
+      });
+      return false; // Failed
     }
   },
 

@@ -309,12 +309,13 @@ export default function Dashboard() {
   };
 
   // 포켓 삭제 핸들러
-  const handleDeletePocket = async (id: string) => {
-    await deletePocket(id);
-    if (pocketId === id) {
+  const handleDeletePocket = async (id: string): Promise<boolean> => {
+    const success = await deletePocket(id);
+    if (success && pocketId === id) {
       navigate('/dashboard');
       setCurrentView('folders');
     }
+    return success;
   };
 
   const handleEditPocket = (id: string) => {
@@ -499,17 +500,18 @@ export default function Dashboard() {
                     <Button
                       variant="secondary"
                       className="flex items-center gap-1.5 h-9 px-4 rounded-full text-sm font-medium text-red-500 bg-red-50/50 border-0 hover:bg-red-100 hover:text-red-700 transition-all"
-                      onClick={() => {
+                      onClick={async () => {
                         const currentPocket = pockets.find(p => p.id === pocketId);
                         if (!currentPocket) return;
                         const itemCount = currentPocket.item_count || 0;
-                        if (itemCount > 0) {
-                          if (confirm(`'${currentPocket.name}' 포켓을 삭제하시겠습니까?\n포함된 ${itemCount}개의 상품도 휴지통으로 이동합니다.`)) {
-                            handleDeletePocket(pocketId);
-                          }
-                        } else {
-                          if (confirm(`'${currentPocket.name}' 포켓을 삭제하시겠습니까?`)) {
-                            handleDeletePocket(pocketId);
+                        const message = itemCount > 0
+                          ? `'${currentPocket.name}' 포켓을 삭제하시겠습니까?\n포함된 ${itemCount}개의 상품도 휴지통으로 이동합니다.`
+                          : `'${currentPocket.name}' 포켓을 삭제하시겠습니까?`;
+
+                        if (confirm(message)) {
+                          const success = await handleDeletePocket(pocketId);
+                          if (!success) {
+                            showToast("삭제에 실패했습니다. (서버/권한 오류)", "error");
                           }
                         }
                       }}
