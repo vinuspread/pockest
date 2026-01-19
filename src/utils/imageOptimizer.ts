@@ -8,7 +8,7 @@ interface ProcessedImage {
     blurhash: string;
 }
 
-const MAX_WIDTH = 300;
+const MAX_WIDTH = 220;
 
 /**
  * 이미지 URL을 받아 리사이징(최대 600px), WebP 변환, BlurHash 생성을 수행합니다.
