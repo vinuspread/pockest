@@ -60,7 +60,7 @@ export function PocketNavBar({
     return (
         <div
             className={cn(
-                'w-full sticky top-0 z-10 py-1 bg-white/95 backdrop-blur-sm', // Header 높이 고려. Sticky top.
+                'w-full sticky top-0 z-10 py-1 bg-gray-50/95 backdrop-blur-sm', // Header 높이 고려. Sticky top. 배경색 통일.
                 className
             )}
         >
