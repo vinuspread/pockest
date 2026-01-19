@@ -17,6 +17,9 @@ interface PocketState {
   togglePublicPocket: (id: string, isPublic: boolean) => Promise<void>;
   deletePocket: (id: string) => Promise<boolean>;
   selectPocket: (id: string | null) => void;
+  initializeSubscription: () => void;
+  unsubscribe: () => void;
+  subscription?: any;
 }
 
 export const usePocketStore = create<PocketState>((set, get) => ({
@@ -158,4 +161,43 @@ export const usePocketStore = create<PocketState>((set, get) => ({
   },
 
   selectPocket: (id) => set({ selectedPocketId: id }),
+
+  // Realtime Subscription
+  initializeSubscription: () => {
+    const { user } = useAuthStore.getState();
+    if (!user) return;
+
+    // 구독이 이미 있으면 스킵
+    if (get().subscription) return;
+
+    console.log('[PocketStore] 📡 Subscribing to realtime updates...');
+
+    // Pockets 테이블 변경 감지
+    const channel = supabase
+      .channel('pocket-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'pockets',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('[PocketStore] 🔔 Pocket Change received:', payload);
+          get().fetchPockets(); // Refresh data
+        }
+      )
+      .subscribe();
+
+    set({ subscription: channel });
+  },
+
+  unsubscribe: () => {
+    const sub = get().subscription;
+    if (sub) {
+      supabase.removeChannel(sub);
+      set({ subscription: null });
+    }
+  }
 }));

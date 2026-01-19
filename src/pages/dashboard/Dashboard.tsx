@@ -57,6 +57,16 @@ export default function Dashboard() {
   const { items, itemsLoading, itemsError, searchItems: search, updateItem } = useItemStore();
   const [activeId, setActiveId] = useState<string | null>(null);
 
+  // Realtime Subscription
+  useEffect(() => {
+    if (user) {
+      usePocketStore.getState().initializeSubscription();
+    }
+    return () => {
+      usePocketStore.getState().unsubscribe();
+    };
+  }, [user]);
+
   // ... (existing helper hooks for dnd sensors)
   const sensors = useSensors(
     useSensor(MouseSensor, {
