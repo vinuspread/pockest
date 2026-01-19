@@ -705,7 +705,7 @@ export default function Popup() {
             </button>
           </div>
         </div>
-      ) : pocketsLoading ? (
+      ) : pocketsLoading && pockets.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 gap-3">
           <div className="animate-spin w-8 h-8 border-3 border-primary-500 border-t-transparent rounded-full" />
           <p className="text-sm text-gray-500">{t('popup.loading_data')}</p>
