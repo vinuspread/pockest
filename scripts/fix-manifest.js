@@ -24,7 +24,9 @@ try {
         'http://localhost:3000/*',
         'http://localhost:3001/*',
         'ws://localhost:3001/*',
-        'https://accounts.google.com/*'
+        'https://accounts.google.com/*',
+        'https://*.supabase.co/*',
+        'wss://*.supabase.co/*'
     ];
 
     devUrls.forEach(url => {
