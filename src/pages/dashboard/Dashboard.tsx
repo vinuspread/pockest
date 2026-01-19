@@ -553,7 +553,10 @@ export default function Dashboard() {
                 ) : !items || items.length === 0 ? (
                   <EmptyState />
                 ) : (
-                  <ItemGrid items={items} currentView={currentView} />
+                  <ItemGrid
+                    items={currentView === 'pinned' ? items.filter(i => i.is_pinned) : items}
+                    currentView={currentView}
+                  />
                 )}
               </div>
             </div>
