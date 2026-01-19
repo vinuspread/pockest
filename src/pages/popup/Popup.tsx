@@ -192,6 +192,31 @@ export default function Popup() {
   }, [isAuthenticated]); // isAuthenticated가 true로 바뀌면 자동 실행
 
   // ============================================================
+  // Auto-refresh on Sidebar Focus/Visibility (Backup for Realtime)
+  // ============================================================
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const handleRefresh = async () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[Popup] 👁️ Sidebar visible/focused, refreshing data...');
+        await Promise.all([
+          usePocketStore.getState().fetchPockets(),
+          useItemStore.getState().fetchTodayItems()
+        ]);
+      }
+    };
+
+    window.addEventListener('visibilitychange', handleRefresh);
+    window.addEventListener('focus', handleRefresh);
+
+    return () => {
+      window.removeEventListener('visibilitychange', handleRefresh);
+      window.removeEventListener('focus', handleRefresh);
+    };
+  }, [isAuthenticated]);
+
+  // ============================================================
   // 현재 탭에서 상품 정보 스크래핑
   // ============================================================
   const scrapeCurrentPage = useCallback(async () => {
