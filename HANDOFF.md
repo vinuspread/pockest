@@ -1,34 +1,39 @@
-# Pockest Project Handoff (Synced)
-**Date:** 2026-01-19
+# Pockest Project Handoff
+**Date:** 2026-01-23
 **Branch:** `master`
 
-## Status
-This project has been synchronized with the handoff notes from 2026-01-19.
-The local environment is fully set up, dependencies installed, and the build verified.
+## 🚀 Key Accomplishments (Latest Session)
 
-## Key Changes & Verifications
-1.  **Sidebar Improvements (Completed)**
-    - Added "More Options" (...) menu to pockets in the Sidebar.
-    - Connected "Rename" and "Delete" actions.
-    - Added "Create Pocket" button to Sidebar bottom section.
-    - Verified proper props passing from `Dashboard.tsx`.
+### 1. Robust Synchronization (Extension ↔ Dashboard)
+- **Problem:** Supabase Realtime was unreliable, causing sync delays.
+- **Solution:** Implemented **Auto-refresh on Sidebar Focus/Visibility**.
+- **Mechanism:** Whenever the Extension Sidebar gains focus (click/open), it forces a background data fetch (`fetchPockets`, `fetchTodayItems`).
+- **Files Changed:** `src/pages/popup/Popup.tsx`
 
-2.  **CSP & Manifest (Completed)**
-    - Updated `scripts/fix-manifest.js` to automatically add CSP headers and allow ports (`3000`, `3001`) and Google Auth domains during build.
-    - `npm run build` executes this script successfully.
+### 2. Image Optimization & Storage
+- **Optimization:** Thumbnail max width reduced to **220px** (from 600px).
+- **Format:** Converted to **WebP** with 0.75 quality.
+- **Bucket:** Configured to use **`pockest`** bucket (Public).
+- **Files Changed:** `src/utils/imageOptimizer.ts`
 
-3.  **Login UI (Verified)**
-    - Confirmed `Dashboard.tsx` uses the improved Logo UI (`/logo.svg`) and layout.
+### 3. Critical UX Fixes
+- **"Double Click to Save" Fixed:** The loading spinner no longer blocks the UI during background data refreshes. Users can click "Save" immediately without interruption.
+- **Unpin Immediate Update:** Unpinning an item now instantly removes it from the "Favorites" view.
+- **Files Changed:** `src/pages/popup/Popup.tsx`, `src/pages/dashboard/Dashboard.tsx`
 
-## Next Steps for Developer
-1.  **Create .env File**
-    - Obtain `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` etc. and create `.env` in root.
-2.  **Run Development Server**
-    - `npm run dev`
-3.  **Continue Feature Work**
-    - Pocket Sharing (ShareModal implementation details)
-    - Store Registration Prep
+### 4. Refactoring & Compliance (Store Ready)
+- **Permissions:** Removed unused `scripting` permission from `manifest.json`.
+- **Security:** Verified `chrome.identity` usage for OAuth and updated `content_security_policy` in `scripts/fix-manifest.js`.
+- **Codebase:** Refactored loading states to be non-blocking.
 
-## Commands
-- **Build Extension:** `npm run build` (outputs to `dist`)
-- **Dev:** `npm run dev`
+## ⚠️ Action Items for Next Session
+1.  **Environment Check:** Ensure `.env` contains `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+2.  **Verify Bucket:** Confirm `pockest` bucket exists in Supabase Storage and is set to **Public**.
+3.  **Build & Load:**
+    - Run `npm run build`
+    - Load `dist` folder in Chrome Extensions (`chrome://extensions`)
+    - Test "Save to Pocket" and ensure Extension Sidebar updates immediately.
+
+## 📝 Commands
+- **Build:** `npm run build` (Required for Extension updates)
+- **Dev:** `npm run dev` (For Dashboard logic testing)
