@@ -1,10 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { supabase } from '@/services/supabase/client';
+import { createClient } from '@supabase/supabase-js';
 import { ItemGrid } from '@/components/dashboard/ItemGrid';
 import { useAuth } from '@/hooks';
 import type { Item, Pocket } from '@/types/database';
-import { DndContext } from '@dnd-kit/core'; // New
+import { DndContext } from '@dnd-kit/core';
+
+// Public-only Supabase client with hardcoded credentials for shared pages
+const supabaseUrl = 'https://cddcvhqwanljsdellvvr.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNkZGN2aHF3YW5sanNkZWxsdnZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzczNjcxMTUsImV4cCI6MjA1Mjk0MzExNX0.raqE62J8Jz2LcD2rwdxZCsJe9zLTYCHbAaxeMLe7BI4';
+
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function SharedPocketPage() {
     const { pocketId } = useParams<{ pocketId: string }>();
@@ -43,9 +49,6 @@ export default function SharedPocketPage() {
 
                 if (itemError) throw itemError;
 
-                // DB 타입(snake_case)을 앱 내부 타입(Grid 호환)으로 변환할 필요가 있다면 여기서 수행
-                // 현재 ItemGrid는 DB Item 타입을 그대로 쓰는지 확인 필요. 
-                // 보통 ItemGrid는 useItemStore의 Item 타입을 쓰는데, DB 타입과 거의 일치함.
                 setItems(itemData || []);
 
             } catch (err: any) {
