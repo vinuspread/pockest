@@ -571,7 +571,7 @@ export default function Dashboard() {
           items={items || []}
           totalPrice={(items || []).reduce((sum, item) => sum + (item.price || 0), 0)}
           userName={user?.email || undefined}
-          shareUrl={`${import.meta.env.VITE_APP_URL || window.location.origin}/#/share/${pocketId || ''}`}
+          shareUrl={`https://pockest.com/#/share/${pocketId || ''}`}
           pocketId={pocketId || undefined}
           isPublic={pocketId ? pockets.find(p => p.id === pocketId)?.is_public : false}
           onTogglePublic={pocketId ? (val) => togglePublic(pocketId, val) : undefined}
