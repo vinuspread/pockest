@@ -1,4 +1,4 @@
-import fs from 'fs';
+import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -63,9 +63,20 @@ try {
     //     client_id: "YOUR_CLIENT_ID.apps.googleusercontent.com",
     //     scopes: ["https://www.googleapis.com/auth/userinfo.email"]
     // };
-    
+
     // ⚠️ Supabase Auth 사용 시 identity 권한이 불필요할 수 있음
     // Supabase는 브라우저 기반 PKCE 인증을 사용하므로 identity 권한 제거 고려
+
+    // ✅ _locales 폴더 복사
+    const localesSource = path.resolve(__dirname, '../_locales');
+    const localesDest = path.resolve(__dirname, '../dist/_locales');
+
+    if (fs.existsSync(localesSource)) {
+        fs.copySync(localesSource, localesDest, { overwrite: true });
+        console.log('✅ _locales copied to dist/');
+    } else {
+        console.warn('⚠️ _locales folder not found');
+    }
 
     fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
     console.log('✅ Manifest fixed: CSP & Host Permissions updated.');
