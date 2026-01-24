@@ -307,22 +307,33 @@ export default function Popup() {
         }
 
         // 모든 재시도 실패 - 사이트 타입 분석
-        const siteType = await detectSiteType(tab.url!, tab.id);
-        const { user } = useAuthStore.getState();
-        
-        if (siteType === 'unregistered') {
-          // 미등록 쇼핑몰 - Supabase에 기록
-          if (user?.id) {
-            await recordUnregisteredSite(tab.url!, user.id);
+        try {
+          const siteType = await detectSiteType(tab.url!, tab.id);
+          const { user } = useAuthStore.getState();
+          
+          if (siteType === 'unregistered') {
+            // 미등록 쇼핑몰 - Supabase에 기록 (에러 발생해도 무시)
+            try {
+              if (user?.id) {
+                await recordUnregisteredSite(tab.url!, user.id);
+              }
+            } catch (recordError) {
+              logger.warn('Failed to record unregistered site:', recordError);
+            }
+            setScrapeError(t('error.unregistered_mall'));
+            setStatus('unsupported');
+          } else if (siteType === 'general') {
+            // 일반 사이트
+            setScrapeError(t('error.not_shopping_site'));
+            setStatus('unsupported');
+          } else {
+            // 등록된 쇼핑몰이지만 통신 실패
+            setScrapeError(t('error.page_communication'));
+            setStatus('error');
           }
-          setScrapeError(t('error.unregistered_mall'));
-          setStatus('unsupported');
-        } else if (siteType === 'general') {
-          // 일반 사이트
-          setScrapeError(t('error.not_shopping_site'));
-          setStatus('unsupported');
-        } else {
-          // 등록된 쇼핑몰이지만 통신 실패
+        } catch (detectionError) {
+          // 사이트 타입 감지 실패 시 기본 에러 메시지
+          logger.warn('Site detection failed:', detectionError);
           setScrapeError(t('error.page_communication'));
           setStatus('error');
         }
