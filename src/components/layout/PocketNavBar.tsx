@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import { PocketThumbnail } from '@/components/ui/PocketThumbnail';
 import { cn } from '@/utils';
@@ -30,17 +30,49 @@ export function PocketNavBar({
         }
     }, [selectedPocketId]);
 
+    const [isDragging, setIsDragging] = useState(false);
+    const [startX, setStartX] = useState(0);
+    const [scrollLeft, setScrollLeft] = useState(0);
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        if (!scrollContainerRef.current) return;
+        setIsDragging(true);
+        setStartX(e.pageX - scrollContainerRef.current.offsetLeft);
+        setScrollLeft(scrollContainerRef.current.scrollLeft);
+    };
+
+    const handleMouseLeave = () => {
+        setIsDragging(false);
+    };
+
+    const handleMouseUp = () => {
+        setIsDragging(false);
+    };
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (!isDragging || !scrollContainerRef.current) return;
+        e.preventDefault();
+        const x = e.pageX - scrollContainerRef.current.offsetLeft;
+        const walk = (x - startX) * 2; // Scroll-fast
+        scrollContainerRef.current.scrollLeft = scrollLeft - walk;
+    };
+
     return (
         <div
             className={cn(
-                'w-full sticky top-16 z-10 py-1', // Header 높이(16 = 64px) 고려. bg-white 제거.
+                'w-full sticky top-0 z-10 py-1 bg-gray-50/95 backdrop-blur-sm', // Header 높이 고려. Sticky top. 배경색 통일.
                 className
             )}
         >
             <div
                 ref={scrollContainerRef}
+                onMouseDown={handleMouseDown}
+                onMouseLeave={handleMouseLeave}
+                onMouseUp={handleMouseUp}
+                onMouseMove={handleMouseMove}
                 className={cn(
-                    "flex items-center gap-2 px-4 md:px-6 py-[14px] overflow-x-auto no-scrollbar scroll-smooth cursor-grab"
+                    "flex items-center gap-2 px-4 md:px-6 py-[14px] overflow-x-auto no-scrollbar scroll-smooth",
+                    isDragging ? "cursor-grabbing scroll-auto" : "cursor-grab"
                 )}
                 style={{
                     scrollbarWidth: 'none',  /* Firefox */

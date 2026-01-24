@@ -37,6 +37,7 @@ export default function Dashboard() {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isCreatePocketModalOpen, setIsCreatePocketModalOpen] = useState(false);
   const [isEditPocketModalOpen, setIsEditPocketModalOpen] = useState(false);
+  const [editingPocketId, setEditingPocketId] = useState<string | null>(null);
   const [isCompleteProfileModalOpen, setIsCompleteProfileModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isInitialLoad, setIsInitialLoad] = useState(true); // Prevent flicker
@@ -50,13 +51,21 @@ export default function Dashboard() {
     pockets,
     select: selectPocket,
     selectedPocketId,
-    createAndSelect,
-    rename,
     remove: deletePocket,
     togglePublic
   } = usePockets();
   const { items, itemsLoading, itemsError, searchItems: search, updateItem } = useItemStore();
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Realtime Subscription
+  useEffect(() => {
+    if (user) {
+      usePocketStore.getState().initializeSubscription();
+    }
+    return () => {
+      usePocketStore.getState().unsubscribe();
+    };
+  }, [user]);
 
   // ... (existing helper hooks for dnd sensors)
   const sensors = useSensors(
@@ -310,12 +319,18 @@ export default function Dashboard() {
   };
 
   // 포켓 삭제 핸들러
-  const handleDeletePocket = async (id: string) => {
-    await deletePocket(id);
-    if (pocketId === id) {
+  const handleDeletePocket = async (id: string): Promise<boolean> => {
+    const success = await deletePocket(id);
+    if (success && pocketId === id) {
       navigate('/dashboard');
       setCurrentView('folders');
     }
+    return success;
+  };
+
+  const handleEditPocket = (id: string) => {
+    setEditingPocketId(id);
+    setIsEditPocketModalOpen(true);
   };
 
   // Monetization Gate 핸들러
@@ -430,6 +445,13 @@ export default function Dashboard() {
                 selectedPocketId={selectedPocketId}
                 onSelectPocket={handleSelectPocket}
                 onClose={() => setIsMobileMenuOpen(false)}
+                onCreatePocket={() => setIsCreatePocketModalOpen(true)}
+                onEditPocket={handleEditPocket}
+                onDeletePocket={(id, name) => {
+                  if (confirm(`'${name}' 포켓을 삭제하시겠습니까?`)) {
+                    handleDeletePocket(id);
+                  }
+                }}
               />
             </div>
           </div>
@@ -474,7 +496,10 @@ export default function Dashboard() {
                     <Button
                       variant="secondary"
                       className="flex items-center gap-1.5 h-9 px-4 rounded-full text-sm font-medium text-gray-600 bg-gray-50 border-0 hover:bg-gray-100 hover:text-gray-900 transition-all"
-                      onClick={() => setIsEditPocketModalOpen(true)}
+                      onClick={() => {
+                        if (pocketId) setEditingPocketId(pocketId);
+                        setIsEditPocketModalOpen(true);
+                      }}
                     >
                       <Edit3 className="w-4 h-4" />
                       <span>수정</span>
@@ -485,17 +510,18 @@ export default function Dashboard() {
                     <Button
                       variant="secondary"
                       className="flex items-center gap-1.5 h-9 px-4 rounded-full text-sm font-medium text-red-500 bg-red-50/50 border-0 hover:bg-red-100 hover:text-red-700 transition-all"
-                      onClick={() => {
+                      onClick={async () => {
                         const currentPocket = pockets.find(p => p.id === pocketId);
                         if (!currentPocket) return;
                         const itemCount = currentPocket.item_count || 0;
-                        if (itemCount > 0) {
-                          if (confirm(`'${currentPocket.name}' 포켓을 삭제하시겠습니까?\n포함된 ${itemCount}개의 상품도 휴지통으로 이동합니다.`)) {
-                            handleDeletePocket(pocketId);
-                          }
-                        } else {
-                          if (confirm(`'${currentPocket.name}' 포켓을 삭제하시겠습니까?`)) {
-                            handleDeletePocket(pocketId);
+                        const message = itemCount > 0
+                          ? `'${currentPocket.name}' 포켓을 삭제하시겠습니까?\n포함된 ${itemCount}개의 상품도 휴지통으로 이동합니다.`
+                          : `'${currentPocket.name}' 포켓을 삭제하시겠습니까?`;
+
+                        if (confirm(message)) {
+                          const success = await handleDeletePocket(pocketId);
+                          if (!success) {
+                            showToast("삭제에 실패했습니다. (서버/권한 오류)", "error");
                           }
                         }
                       }}
@@ -520,14 +546,17 @@ export default function Dashboard() {
                     onSelectPocket={handleSelectPocket}
                     onCreatePocket={() => setIsCreatePocketModalOpen(true)}
                   />
-                ) : itemsLoading || isInitialLoad ? (
+                ) : (itemsLoading && (!items || items.length === 0)) || isInitialLoad ? (
                   <div className="flex items-center justify-center py-20">
                     <div className="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full" />
                   </div>
                 ) : !items || items.length === 0 ? (
                   <EmptyState />
                 ) : (
-                  <ItemGrid items={items} currentView={currentView} />
+                  <ItemGrid
+                    items={currentView === 'pinned' ? items.filter(i => i.is_pinned) : items}
+                    currentView={currentView}
+                  />
                 )}
               </div>
             </div>
@@ -558,12 +587,15 @@ export default function Dashboard() {
           onClose={() => setIsCreatePocketModalOpen(false)}
         />
 
-        {pocketId && (
+        {(pocketId || editingPocketId) && (
           <EditPocketModal
             isOpen={isEditPocketModalOpen}
-            onClose={() => setIsEditPocketModalOpen(false)}
-            pocketId={pocketId}
-            initialName={pockets.find(p => p.id === pocketId)?.name || ''}
+            onClose={() => {
+              setIsEditPocketModalOpen(false);
+              setEditingPocketId(null);
+            }}
+            pocketId={editingPocketId || pocketId || ''}
+            initialName={pockets.find(p => p.id === (editingPocketId || pocketId))?.name || ''}
           />
         )}
         {toast && (

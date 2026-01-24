@@ -58,7 +58,7 @@ export const processImage = async (imageUrl: string): Promise<ProcessedImage> =>
                     }
                 },
                 'image/webp',
-                0.8 // Quality
+                0.75 // Quality reduced for storage optimization
             );
         };
 
@@ -77,7 +77,7 @@ export const uploadThumbnail = async (userId: string, blob: Blob): Promise<strin
     const path = `thumbnails/${userId}/${timestamp}.webp`;
 
     const { error } = await supabase.storage
-        .from('thumbnails')
+        .from('pockest')
         .upload(path, blob, {
             contentType: 'image/webp',
             cacheControl: '3600',
@@ -89,7 +89,7 @@ export const uploadThumbnail = async (userId: string, blob: Blob): Promise<strin
     }
 
     const { data: { publicUrl } } = supabase.storage
-        .from('thumbnails')
+        .from('pockest')
         .getPublicUrl(path);
 
     return publicUrl;

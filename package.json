@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:extension": "vite build --watch --mode development",
-    "build": "tsc && vite build && node scripts/fix-manifest.cjs",
+    "build": "tsc && vite build && node scripts/fix-manifest.js",
     "build:web": "tsc && vite build --config vite.web.config.ts",
     "build:extension": "vite build --mode production && node scripts/fix-manifest.js",
     "preview": "vite preview",

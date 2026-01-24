@@ -153,6 +153,16 @@ export default function Popup() {
     initAuth();
   }, []);
 
+  // Realtime Subscription
+  useEffect(() => {
+    if (isAuthenticated) {
+      usePocketStore.getState().initializeSubscription();
+    }
+    return () => {
+      usePocketStore.getState().unsubscribe();
+    };
+  }, [isAuthenticated]);
+
   // ============================================================
   // 로그인 상태 변화 감지 → 데이터 자동 로드 (핵심 수정!)
   // ============================================================
@@ -180,6 +190,31 @@ export default function Popup() {
 
     loadData();
   }, [isAuthenticated]); // isAuthenticated가 true로 바뀌면 자동 실행
+
+  // ============================================================
+  // Auto-refresh on Sidebar Focus/Visibility (Backup for Realtime)
+  // ============================================================
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const handleRefresh = async () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[Popup] 👁️ Sidebar visible/focused, refreshing data...');
+        await Promise.all([
+          usePocketStore.getState().fetchPockets(),
+          useItemStore.getState().fetchTodayItems()
+        ]);
+      }
+    };
+
+    window.addEventListener('visibilitychange', handleRefresh);
+    window.addEventListener('focus', handleRefresh);
+
+    return () => {
+      window.removeEventListener('visibilitychange', handleRefresh);
+      window.removeEventListener('focus', handleRefresh);
+    };
+  }, [isAuthenticated]);
 
   // ============================================================
   // 현재 탭에서 상품 정보 스크래핑
@@ -214,7 +249,6 @@ export default function Popup() {
         return;
       }
 
-      // 재시도 로직 추가 (Content Script가 로드될 때까지 대기)
       const sendMessageWithRetry = async (retries = 3, delay = 500) => {
         for (let i = 0; i < retries; i++) {
           try {
@@ -224,7 +258,11 @@ export default function Popup() {
                 { type: 'SCRAPE_PRODUCT' },
                 (response) => {
                   if (chrome.runtime.lastError) {
-                    console.warn(`[Popup] Retry ${i + 1}/${retries}:`, chrome.runtime.lastError.message);
+                    // Suppress 'Receiving end does not exist' noise as it's common on non-injected pages
+                    const msg = chrome.runtime.lastError.message;
+                    if (!msg?.includes('Receiving end does not exist')) {
+                      console.warn(`[Popup] Retry ${i + 1}/${retries}:`, msg);
+                    }
                     resolve(null);
                   } else {
                     resolve(response);
@@ -256,8 +294,7 @@ export default function Popup() {
           }
         }
 
-        // 모든 재시도 실패
-        console.warn('[Popup] All retries failed');
+        // 모든 재시도 실패 - 조용히 처리 (사용자에게는 에러 표시)
         setScrapeError(t('error.page_communication'));
         setStatus('error');
       };
@@ -668,7 +705,7 @@ export default function Popup() {
             </button>
           </div>
         </div>
-      ) : pocketsLoading ? (
+      ) : pocketsLoading && pockets.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 gap-3">
           <div className="animate-spin w-8 h-8 border-3 border-primary-500 border-t-transparent rounded-full" />
           <p className="text-sm text-gray-500">{t('popup.loading_data')}</p>
@@ -856,7 +893,7 @@ export default function Popup() {
 
       {/* 포켓 목록 영역 */}
       <div className="flex-1 overflow-y-auto p-5 space-y-2 bg-gray-50/50">
-        {pocketsLoading ? (
+        {pocketsLoading && pockets.length === 0 ? (
           <div className="flex items-center justify-center py-10">
             <div className="animate-spin w-6 h-6 border-2 border-[#7548B8] border-t-transparent rounded-full" />
           </div>
