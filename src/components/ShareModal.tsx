@@ -1,5 +1,5 @@
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import html2canvas from 'html2canvas';
 import { X, Download, Copy, Share2, Check, ShoppingBag } from 'lucide-react';
 import { formatPrice } from '@/utils';
@@ -32,6 +32,7 @@ export function ShareModal({
     const cardRef = useRef<HTMLDivElement>(null);
     const [isGenerating, setIsGenerating] = useState(false);
     const [copied, setCopied] = useState(false);
+    const [imagesLoaded, setImagesLoaded] = useState(false);
 
     if (!isOpen) return null;
 
@@ -40,18 +41,66 @@ export function ShareModal({
 
     // 나머지 아이템 개수
     const remainingCount = Math.max(0, items.length - 9);
+    
+    // 이미지 프리로드
+    const preloadImages = () => {
+        const imageUrls = displayItems.filter(item => item.image_url).map(item => item.image_url!);
+        if (imageUrls.length === 0) {
+            setImagesLoaded(true);
+            return;
+        }
+        
+        let loadedCount = 0;
+        imageUrls.forEach(url => {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+                loadedCount++;
+                if (loadedCount === imageUrls.length) {
+                    setImagesLoaded(true);
+                }
+            };
+            img.onerror = () => {
+                loadedCount++;
+                if (loadedCount === imageUrls.length) {
+                    setImagesLoaded(true);
+                }
+            };
+            img.src = url;
+        });
+    };
 
     const handleDownloadImage = async () => {
         if (!cardRef.current) return;
 
         try {
             setIsGenerating(true);
+            
+            // 이미지 로딩이 완료될 때까지 대기
+            if (!imagesLoaded) {
+                await new Promise(resolve => {
+                    const checkInterval = setInterval(() => {
+                        if (imagesLoaded) {
+                            clearInterval(checkInterval);
+                            resolve(true);
+                        }
+                    }, 100);
+                    
+                    // 5초 타임아웃
+                    setTimeout(() => {
+                        clearInterval(checkInterval);
+                        resolve(false);
+                    }, 5000);
+                });
+            }
 
             // 고해상도 캡처를 위해 scale 증가
             const canvas = await html2canvas(cardRef.current, {
                 scale: 2,
                 useCORS: true, // 이미지 CORS 처리 (외부 이미지인 경우 중요)
+                allowTaint: false,
                 backgroundColor: null,
+                logging: false,
             });
 
             const image = canvas.toDataURL('image/png');
@@ -61,7 +110,7 @@ export function ShareModal({
             link.click();
         } catch (err) {
             console.error('Failed to generate image:', err);
-            alert('이미지 생성에 실패했습니다.');
+            alert('이미지 생성에 실패했습니다. 잠시 후 다시 시도해주세요.');
         } finally {
             setIsGenerating(false);
         }
@@ -72,6 +121,14 @@ export function ShareModal({
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
+    
+    // 모달이 열릴 때 이미지 프리로드
+    useEffect(() => {
+        if (isOpen) {
+            setImagesLoaded(false);
+            preloadImages();
+        }
+    }, [isOpen, displayItems]);
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
