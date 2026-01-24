@@ -46,7 +46,8 @@ export default function SharedPocketPage() {
                 setItems(itemData || []);
 
             } catch (err: any) {
-                console.warn(err);
+                console.error('[SharedPocket] Error:', err);
+                console.error('[SharedPocket] PocketId:', pocketId);
                 setError(err.message || '포켓을 불러오는데 실패했습니다.');
             } finally {
                 setLoading(false);
