@@ -549,7 +549,7 @@ export default function Popup() {
     setStatus('saving');
 
     try {
-      let finalImageUrl = currentImageUrl;
+      let finalImageUrl: string | null = currentImageUrl;
       let finalBlurhash: string | null = null;
 
       // 이미지 최적화 및 업로드 시도
