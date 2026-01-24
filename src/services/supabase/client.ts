@@ -3,8 +3,8 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '@/types/database';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://cddcvhqwanljsdellvvr.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNkZGN2aHF3YW5sanNkZWxsdnZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzczNjcxMTUsImV4cCI6MjA1Mjk0MzExNX0.raqE62J8Jz2LcD2rwdxZCsJe9zLTYCHbAaxeMLe7BI4';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://xnfxfitvgmzrfhhigsgb.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_DLn32up5Awyji419aa61oA_Z8GDBbxL';
 
 /**
  * Supabase Client 설정
