@@ -564,10 +564,23 @@ export default function Popup() {
 
           logger.log('Image processed:', finalImageUrl);
         } catch (imgError) {
-          logger.warn('Image optimization failed:', imgError);
-          // 실패 시 이미지 없이 저장 (CORS 문제 방지)
-          finalImageUrl = null;
-          finalBlurhash = null;
+          logger.warn('Image optimization failed, trying direct upload:', imgError);
+          // Fallback: 원본 이미지를 직접 fetch하여 업로드 시도
+          try {
+            const response = await fetch(currentImageUrl);
+            if (response.ok) {
+              const blob = await response.blob();
+              finalImageUrl = await uploadThumbnail(user.id, blob);
+              logger.log('Direct upload successful:', finalImageUrl);
+            } else {
+              throw new Error(`Fetch failed: ${response.status}`);
+            }
+          } catch (fallbackError) {
+            logger.warn('Direct upload also failed:', fallbackError);
+            // 최종 실패: 이미지 없이 저장
+            finalImageUrl = null;
+            finalBlurhash = null;
+          }
         }
       }
 

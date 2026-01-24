@@ -74,10 +74,26 @@ const MALL_IMAGE_SELECTORS: Record<string, string[]> = {
   '29cm.co.kr': ['.detail-image img', '.prd_img img'],
   // W컨셉
   'wconcept.co.kr': ['.prd_img img', '.thumb img'],
-  // 아마존
-  'amazon': ['.imgTagWrapper img', '#landingImage', '#imgBlkFront', '.image-wrapper img'],
-  // 알리익스프레스
-  'aliexpress': ['.image-view-magnifier-wrap img', '.images-view-item img'],
+  // 아마존 (다양한 버전 대응)
+  'amazon': [
+    '#landingImage',
+    '#imgBlkFront',
+    '.imgTagWrapper img',
+    '.image-wrapper img',
+    '[data-a-image-name="landingImage"]',
+    '#main-image-container img',
+    '[data-old-hires]',
+    '.a-dynamic-image',
+  ],
+  // 알리익스프레스 (2024년 업데이트 포함)
+  'aliexpress': [
+    '.image-view-magnifier-wrap img',
+    '.images-view-item img',
+    '.magnifier-image img',
+    '[class*="imageView"] img',
+    '[class*="product-image"] img',
+    '.product-viewer img',
+  ],
 };
 
 // ============================================================
