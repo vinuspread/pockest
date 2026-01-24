@@ -45,6 +45,7 @@
     }
   ],
   "permissions": [
+    "identity",
     "sidePanel",
     "storage",
     "activeTab"
@@ -76,5 +77,8 @@
         "<all_urls>"
       ]
     }
-  ]
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://accounts.google.com;"
+  }
 }

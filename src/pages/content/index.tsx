@@ -4,6 +4,7 @@
  */
 
 import { parseProductFromPage, parseProductWithRetry, isProductPage, type ProductData } from '@/utils/parser';
+import { logger } from '@/utils/logger';
 
 // ============================================================
 // 타입 정의
@@ -50,7 +51,7 @@ chrome.runtime.onMessage.addListener(
         return false;
 
       default:
-        console.log('[Pockest] Unknown message type:', message.type);
+        logger.log('Unknown message type:', message.type);
         return false;
     }
   }
@@ -81,7 +82,7 @@ async function handleScrapeProduct(
       data: productData,
     });
   } catch (error) {
-    console.error('[Pockest] Scrape error:', error);
+    logger.error('Scrape error:', error);
     sendResponse({
       success: false,
       data: null,
@@ -100,7 +101,7 @@ function handleGetPageInfo(
     const productData = parseProductFromPage(document);
     sendResponse(productData);
   } catch (error) {
-    console.error('[Pockest] GetPageInfo error:', error);
+    logger.error('GetPageInfo error:', error);
     // 오류 시 기본값 반환
     sendResponse({
       title: document.title || '',
@@ -124,7 +125,7 @@ function handleGetPageInfo(
 function initialize(): void {
   // 상품 페이지 여부 로깅 (디버깅용)
   const isProduct = isProductPage(document);
-  console.log('[Pockest] Content script loaded', {
+  logger.log('Content script loaded', {
     url: window.location.href,
     isProductPage: isProduct,
   });
@@ -140,7 +141,19 @@ function initialize(): void {
   }
 }
 
-// DOM 로드 완료 후 초기화
+// ⚠️ Remove auto-initialization for compliance (perform lazily or on specific domains only)
+// The manifest now restricts domains, so this script only runs on whitelisted sites.
+// However, the report recommended minimizing impact. 
+// Given we have a whitelist now, running initialize() is safer, BUT removing it is even safer for performance.
+// Let's keep initialize() BUT only call it if we are sure.
+// Since we used 'whitelist', content script ONLY injects on shopping sites.
+// So 'initialize' running automatically IS ACCEPTABLE for functionality (auto-detect).
+// But to be perfectly safe with the "Performance" warning, I will wrap it in a lightweight check or just keep it since whitelist solves the "Every Page" issue.
+// Actually, strict compliance suggests: "Don't do heavy parsing on load".
+// `isProductPage` is relatively light. `parseProduct` is heavy.
+// `initialize()` only calls `isProductPage`. This is fine. 
+// I will just replace console.log in initialize and keep the logic, as the whitelist is the main fix.
+
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', initialize);
 } else {

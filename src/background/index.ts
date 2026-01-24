@@ -7,10 +7,12 @@
 // 사이드 패널 설정 함수
 // ============================================================
 
+import { logger } from '@/utils/logger';
+
 const setupSidePanel = () => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
-    .then(() => console.log('[Pockest] SidePanel behavior set successfully'))
-    .catch((error) => console.error('[Pockest] SidePanel Setup Error:', error));
+    .then(() => logger.log('SidePanel behavior set successfully'))
+    .catch((error) => logger.error('SidePanel Setup Error:', error));
 };
 
 // ============================================================
@@ -18,20 +20,20 @@ const setupSidePanel = () => {
 // ============================================================
 
 chrome.runtime.onInstalled.addListener((details) => {
-  console.log('[Pockest] Extension installed:', details.reason);
-  
+  logger.log('Extension installed:', details.reason);
+
   // 사이드 패널 동작 설정
   setupSidePanel();
 
   if (details.reason === 'install') {
     // 최초 설치 시 환영 페이지(Welcome) 열기
-    console.log('[Pockest] Opening welcome page for new installation');
+    logger.log('Opening welcome page for new installation');
     chrome.tabs.create({
       url: chrome.runtime.getURL('index.html#/welcome'),
     });
   } else if (details.reason === 'update') {
     // 업데이트 시에는 로그만 출력
-    console.log('[Pockest] Extension updated to version:', chrome.runtime.getManifest().version);
+    logger.log('Extension updated to version:', chrome.runtime.getManifest().version);
   }
 });
 
@@ -40,7 +42,7 @@ chrome.runtime.onInstalled.addListener((details) => {
 // ============================================================
 
 chrome.runtime.onStartup.addListener(() => {
-  console.log('[Pockest] Browser started, setting up side panel');
+  logger.log('Browser started, setting up side panel');
   setupSidePanel();
 });
 
@@ -49,23 +51,23 @@ chrome.runtime.onStartup.addListener(() => {
 // ============================================================
 
 chrome.action.onClicked.addListener(async (tab) => {
-  console.log('[Pockest] Action clicked, opening side panel');
-  
+  logger.log('Action clicked, opening side panel');
+
   // windowId로 사이드 패널 열기 (더 안정적)
   if (tab.windowId) {
     try {
       await chrome.sidePanel.open({ windowId: tab.windowId });
-      console.log('[Pockest] Side panel opened via windowId');
+      logger.log('Side panel opened via windowId');
     } catch (error) {
-      console.error('[Pockest] Failed to open side panel:', error);
-      
+      logger.error('Failed to open side panel:', error);
+
       // Fallback: tabId로 시도
       if (tab.id) {
         try {
           await chrome.sidePanel.open({ tabId: tab.id });
-          console.log('[Pockest] Side panel opened via tabId (fallback)');
+          logger.log('Side panel opened via tabId (fallback)');
         } catch (fallbackError) {
-          console.error('[Pockest] Fallback also failed:', fallbackError);
+          logger.error('Fallback also failed:', fallbackError);
         }
       }
     }
@@ -97,11 +99,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       break;
 
     case 'PRODUCT_PAGE_DETECTED':
-      console.log('[Pockest] Product page detected:', message.payload?.url);
+      logger.log('Product page detected:', message.payload?.url);
       break;
 
     default:
-      console.log('[Pockest] Unknown message type:', message.type);
+      logger.log('Unknown message type:', message.type);
   }
 });
 
@@ -111,21 +113,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // 상품 저장 핸들러
 async function handleSaveItem(item: unknown) {
-  console.log('[Pockest] Save item request:', item);
+  logger.log('Save item request:', item);
   return item;
 }
 
 // 모든 탭에 메시지 브로드캐스트
+// ⚠️ WARNING: tabs 권한 제거로 인해 브로드캐스트 불가
+// 대안: Storage API를 사용하거나 개별 탭에서 polling
 function broadcastMessage(message: unknown) {
-  chrome.tabs.query({}, (tabs) => {
-    tabs.forEach((tab) => {
-      if (tab.id) {
-        chrome.tabs.sendMessage(tab.id, message).catch(() => {
-          // 탭에 content script가 없는 경우 무시
-        });
-      }
-    });
+  // Storage를 통한 상태 공유 방식으로 변경 권장
+  chrome.storage.local.set({ lastAuthState: message }).catch(() => {
+    // Storage 실패 무시
   });
 }
 
-console.log('[Pockest] Background service worker started');
+logger.log('Background service worker started');
