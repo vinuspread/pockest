@@ -11,7 +11,7 @@ interface ProcessedImage {
 const MAX_WIDTH = 200;
 
 /**
- * 이미지 URL을 받아 리사이징(최대 600px), WebP 변환, BlurHash 생성을 수행합니다.
+ * 이미지 URL을 받아 리사이징(최대 200px), WebP 변환, BlurHash 생성을 수행합니다.
  * Chrome Extension의 host_permissions를 활용하여 CORS 문제를 우회합니다.
  */
 export const processImage = async (imageUrl: string): Promise<ProcessedImage> => {
