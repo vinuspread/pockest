@@ -54,7 +54,7 @@ export default function Dashboard() {
     remove: deletePocket,
     togglePublic
   } = usePockets();
-  const { items, itemsLoading, itemsError, searchItems: search, updateItem } = useItemStore();
+  const { items, itemsLoading, itemsError, searchItems: search, updateItem, selectedPocketId: loadedPocketId } = useItemStore();
   const [activeId, setActiveId] = useState<string | null>(null);
 
   // Realtime Subscription
@@ -541,7 +541,7 @@ export default function Dashboard() {
                       onCreatePocket={() => setIsCreatePocketModalOpen(true)}
                     />
                   )
-                ) : (itemsLoading && (!items || items.length === 0)) || isInitialLoad ? (
+                ) : (itemsLoading || (pocketId ? loadedPocketId !== pocketId : loadedPocketId !== null)) || isInitialLoad ? (
                   <div className="flex items-center justify-center py-20">
                     <div className="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full" />
                   </div>
