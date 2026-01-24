@@ -1,5 +1,6 @@
 import { useAuthStore } from '../../store/useAuthStore';
-import { LogOut, UserX } from 'lucide-react';
+import { LogOut, UserX, Info, Heart, Github } from 'lucide-react';
+import manifest from '../../../manifest.json';
 
 export default function Settings() {
   const { user, signOut, withdraw } = useAuthStore();
@@ -16,7 +17,7 @@ export default function Settings() {
   return (
     <div className="p-8 max-w-2xl mx-auto">
       <h1 className="text-2xl font-bold mb-8">계정 설정</h1>
-      
+
       {/* 프로필 카드 */}
       <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-8 flex items-center gap-4">
         <div className="w-16 h-16 bg-gray-200 rounded-full overflow-hidden">
@@ -33,7 +34,7 @@ export default function Settings() {
       {/* 액션 버튼 */}
       <div className="space-y-4">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 divide-y">
-          <button 
+          <button
             onClick={handleLogout}
             className="w-full flex items-center px-6 py-4 text-left hover:bg-gray-50 transition-colors"
           >
@@ -43,8 +44,8 @@ export default function Settings() {
               <p className="text-sm text-gray-500">현재 기기에서 로그아웃합니다.</p>
             </div>
           </button>
-          
-          <button 
+
+          <button
             onClick={handleWithdraw}
             className="w-full flex items-center px-6 py-4 text-left hover:bg-red-50 transition-colors group"
           >
