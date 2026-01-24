@@ -23,6 +23,7 @@ export default defineConfig({
         dashboard: path.resolve(__dirname, 'index.html'),
       },
     },
+    sourcemap: false, // Production에서 source map 비활성화
     minify: 'terser',
     terserOptions: {
       compress: {
