@@ -31,42 +31,40 @@ export async function recordUnregisteredSite(url: string, userId?: string): Prom
     const domain = extractDomain(url);
     if (!domain) return;
     
-    // Upsert: 이미 있으면 visit_count 증가, 없으면 새로 생성
-    const { error } = await supabase.rpc('upsert_unregistered_site', {
-      p_domain: domain,
-      p_full_url: url,
-      p_user_id: userId || null,
-    });
+    // 기존 레코드 확인
+    let query = supabase
+      .from('unregistered_sites')
+      .select('id, visit_count')
+      .eq('domain', domain);
     
-    if (error) {
-      // RPC 함수가 없을 경우 fallback: 직접 쿼리
-      const { data: existing } = await supabase
+    if (userId) {
+      query = query.eq('user_id', userId);
+    } else {
+      query = query.is('user_id', null);
+    }
+    
+    const { data: existing } = await query.maybeSingle();
+    
+    if (existing) {
+      // Update
+      await supabase
         .from('unregistered_sites')
-        .select('id, visit_count')
-        .eq('domain', domain)
-        .eq('user_id', userId || null)
-        .single();
-      
-      if (existing) {
-        // Update
-        await supabase
-          .from('unregistered_sites')
-          .update({
-            visit_count: existing.visit_count + 1,
-            last_visited_at: new Date().toISOString(),
-          })
-          .eq('id', existing.id);
-      } else {
-        // Insert
-        await supabase
-          .from('unregistered_sites')
-          .insert({
-            domain,
-            full_url: url,
-            user_id: userId || null,
-            visit_count: 1,
-          });
-      }
+        .update({
+          visit_count: existing.visit_count + 1,
+          last_visited_at: new Date().toISOString(),
+          full_url: url,
+        })
+        .eq('id', existing.id);
+    } else {
+      // Insert
+      await supabase
+        .from('unregistered_sites')
+        .insert({
+          domain,
+          full_url: url,
+          user_id: userId || null,
+          visit_count: 1,
+        });
     }
   } catch (error) {
     console.error('[recordUnregisteredSite] Error:', error);
@@ -78,17 +76,38 @@ export async function recordUnregisteredSite(url: string, userId?: string): Prom
  */
 export async function getUnregisteredSitesStats(): Promise<UnregisteredSiteStats[]> {
   const { data, error } = await supabase
-    .from('unregistered_sites_stats')
-    .select('*')
-    .order('unique_users', { ascending: false })
-    .limit(100);
+    .from('unregistered_sites')
+    .select('domain, user_id, visit_count, last_visited_at, created_at');
   
   if (error) {
     console.error('[getUnregisteredSitesStats] Error:', error);
     return [];
   }
   
-  return data || [];
+  // 클라이언트 측 집계
+  const statsMap = new Map<string, UnregisteredSiteStats>();
+  
+  data?.forEach(row => {
+    const existing = statsMap.get(row.domain);
+    if (existing) {
+      existing.unique_users += row.user_id ? 1 : 0;
+      existing.total_visits += row.visit_count;
+      existing.last_visit = row.last_visited_at > existing.last_visit ? row.last_visited_at : existing.last_visit;
+      existing.first_discovered = row.created_at < existing.first_discovered ? row.created_at : existing.first_discovered;
+    } else {
+      statsMap.set(row.domain, {
+        domain: row.domain,
+        unique_users: row.user_id ? 1 : 0,
+        total_visits: row.visit_count,
+        last_visit: row.last_visited_at,
+        first_discovered: row.created_at,
+      });
+    }
+  });
+  
+  return Array.from(statsMap.values())
+    .sort((a, b) => b.unique_users - a.unique_users || b.total_visits - a.total_visits)
+    .slice(0, 100);
 }
 
 /**

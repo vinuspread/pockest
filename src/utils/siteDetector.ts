@@ -172,7 +172,7 @@ export async function analyzePageForShopping(tabId: number): Promise<{
       },
     });
     
-    return results[0].result;
+    return results[0]?.result || { isShoppingPage: false, confidence: 0 };
   } catch (error) {
     // executeScript 실패 시 (권한 없음 등)
     return { isShoppingPage: false, confidence: 0 };

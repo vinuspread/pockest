@@ -15,7 +15,7 @@ import type { ProductData } from '@/utils/parser';
 import { processImage, uploadThumbnail } from '@/utils/imageOptimizer';
 import { AuthForms } from '@/components/auth/AuthForms';
 import { logger } from '@/utils/logger';
-import { detectSiteType, extractDomain } from '@/utils/siteDetector';
+import { detectSiteType } from '@/utils/siteDetector';
 import { recordUnregisteredSite } from '@/services/supabase/unregisteredSites';
 
 type ScrapeStatus = 'idle' | 'scraping' | 'saving' | 'success' | 'error' | 'unsupported'; // Added 'unsupported'
@@ -308,6 +308,7 @@ export default function Popup() {
 
         // 모든 재시도 실패 - 사이트 타입 분석
         const siteType = await detectSiteType(tab.url!, tab.id);
+        const { user } = useAuthStore.getState();
         
         if (siteType === 'unregistered') {
           // 미등록 쇼핑몰 - Supabase에 기록
