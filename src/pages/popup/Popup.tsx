@@ -10,7 +10,7 @@ import { usePocketStore } from '@/store/usePocketStore';
 import { useItemStore } from '@/store/useItemStore';
 // import { supabase } from '@/services/supabase/client';
 import { Toast, useToast } from '@/components/ui';
-import { cn, formatPrice, openDashboard } from '@/utils';
+import { cn, formatPrice, openDashboard, dataUrlToBlob } from '@/utils';
 import type { ProductData } from '@/utils/parser';
 import { processImage, uploadThumbnail } from '@/utils/imageOptimizer';
 import { AuthForms } from '@/components/auth/AuthForms';
@@ -552,10 +552,24 @@ export default function Popup() {
       let finalImageUrl: string | null = currentImageUrl;
       let finalBlurhash: string | null = null;
 
-      // 이미지 최적화 및 업로드 시도
-      if (currentImageUrl) {
+      // 이미지 처리 및 업로드
+      if (productData.processedImage) {
+        // Content Script에서 이미 처리된 이미지 사용
         try {
-          logger.log('Optimizing image...', currentImageUrl);
+          logger.log('Using pre-processed image from Content Script');
+          const blob = dataUrlToBlob(productData.processedImage.dataUrl);
+          finalImageUrl = await uploadThumbnail(user.id, blob);
+          finalBlurhash = productData.processedImage.blurhash;
+          logger.log('Pre-processed image uploaded:', finalImageUrl);
+        } catch (uploadError) {
+          logger.warn('Pre-processed image upload failed:', uploadError);
+          finalImageUrl = null;
+          finalBlurhash = null;
+        }
+      } else if (currentImageUrl) {
+        // 구버전 호환: Popup에서 처리 (Fallback)
+        try {
+          logger.log('Processing image in Popup (fallback)...', currentImageUrl);
           const { blob, blurhash } = await processImage(currentImageUrl);
 
           logger.log('Uploading thumbnail...');
@@ -564,7 +578,7 @@ export default function Popup() {
 
           logger.log('Image processed:', finalImageUrl);
         } catch (imgError) {
-          logger.warn('Image optimization failed, trying direct upload:', imgError);
+          logger.warn('Image processing failed, trying direct upload:', imgError);
           // Fallback: 원본 이미지를 직접 fetch하여 업로드 시도
           try {
             const response = await fetch(currentImageUrl);

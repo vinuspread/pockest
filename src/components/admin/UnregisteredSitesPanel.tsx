@@ -270,59 +270,6 @@ export function UnregisteredSitesPanel() {
 
                 <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mt-6">
                   <span className="bg-primary-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm">2</span>
-                  이미지 CDN 주소 확인 (중요!)
-                </h3>
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
-                  <p className="text-sm text-gray-700 font-medium">⚠️ 이미지 로딩 실패를 방지하려면 CDN 정보가 필수입니다.</p>
-                  
-                  <div className="space-y-2">
-                    <p className="text-sm font-semibold text-gray-800">📋 확인 방법:</p>
-                    <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700 ml-2">
-                      <li>
-                        <strong>{selectedDomain}</strong> 접속 후 상품 상세 페이지로 이동
-                      </li>
-                      <li>
-                        <kbd className="px-2 py-0.5 bg-gray-200 rounded text-xs font-mono">F12</kbd> 눌러 개발자 도구 열기
-                      </li>
-                      <li>
-                        <strong>Network</strong> 탭 클릭 → <strong>Img</strong> 필터 선택
-                      </li>
-                      <li>
-                        페이지 새로고침 (<kbd className="px-2 py-0.5 bg-gray-200 rounded text-xs font-mono">Ctrl+R</kbd>)
-                      </li>
-                      <li>
-                        상품 이미지 파일 클릭 → <strong>Headers</strong> 탭에서 <code className="bg-white px-1 py-0.5 rounded text-xs">Request URL</code> 확인
-                      </li>
-                    </ol>
-                  </div>
-
-                  <div className="bg-white rounded-lg p-3 border border-amber-300">
-                    <p className="text-xs font-semibold text-gray-700 mb-2">예시:</p>
-                    <div className="space-y-1 text-xs font-mono">
-                      <div className="flex items-start gap-2">
-                        <span className="text-gray-500 shrink-0">쿠팡:</span>
-                        <code className="text-primary-600">https://thumbnail.coupangcdn.com/...</code>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <span className="text-gray-500 shrink-0">아마존:</span>
-                        <code className="text-primary-600">https://m.media-amazon.com/images/...</code>
-                      </div>
-                      <div className="flex items-start gap-2">
-                        <span className="text-gray-500 shrink-0">알리:</span>
-                        <code className="text-primary-600">https://ae01.alicdn.com/...</code>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                    <p className="text-xs text-blue-800">
-                      💡 <strong>팁:</strong> 이미지 우클릭 → "이미지 주소 복사"로도 확인 가능합니다.
-                    </p>
-                  </div>
-                </div>
-
-                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mt-6">
-                  <span className="bg-primary-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm">3</span>
                   AI 에이전트에게 요청하기
                 </h3>
                 <div className="bg-gray-50 rounded-xl p-4 space-y-3">
@@ -333,13 +280,6 @@ export function UnregisteredSitesPanel() {
                     <div className="space-y-1 text-gray-900">
                       <div>
                         <span className="text-primary-600 font-semibold">{selectedDomain}</span> 쇼핑몰 등록해줘.
-                      </div>
-                      <div className="text-gray-500 text-xs mt-3">// 추가 정보가 있다면:</div>
-                      <div className="text-gray-700">
-                        - 쇼핑몰 이름: <span className="text-amber-600">[이름]</span>
-                      </div>
-                      <div className="text-gray-700">
-                        - CDN 도메인: <span className="text-amber-600">[*.cdn-domain.com]</span>
                       </div>
                     </div>
                   </div>
@@ -363,7 +303,7 @@ export function UnregisteredSitesPanel() {
                 </div>
 
                 <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2 mt-6">
-                  <span className="bg-primary-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm">4</span>
+                  <span className="bg-primary-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm">3</span>
                   AI가 자동으로 처리하는 작업
                 </h3>
                 <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-4">
@@ -378,24 +318,20 @@ export function UnregisteredSitesPanel() {
                     </li>
                     <li className="flex items-start gap-2">
                       <span className="text-green-600 shrink-0">✓</span>
-                      <span><strong>popup/index.html</strong>의 CSP에 CDN 추가 (제공 시)</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-green-600 shrink-0">✓</span>
-                      <span><strong>parser.ts</strong>에 쇼핑몰별 선택자 추가 (선택적)</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <span className="text-green-600 shrink-0">✓</span>
                       <span>빌드 + 커밋 + GitHub 푸시</span>
                     </li>
                   </ul>
+                  <div className="mt-4 bg-white rounded-lg p-3 border border-indigo-300">
+                    <p className="text-xs text-indigo-800">
+                      💡 <strong>참고:</strong> Content Script 방식으로 이미지를 처리하므로 CSP 정보는 필요하지 않습니다.
+                    </p>
+                  </div>
                 </div>
 
                 <div className="bg-gray-100 rounded-xl p-4 mt-4">
                   <p className="text-xs text-gray-600 leading-relaxed">
                     <strong>💡 참고:</strong> AI에게 요청 후 약 1-2분 내 자동으로 처리됩니다. 
                     완료되면 익스텐션을 재로드하여 새 쇼핑몰을 테스트하세요.
-                    CDN 정보가 없어도 기본 이미지 추출 알고리즘이 작동하지만, 제공하면 더 정확합니다.
                   </p>
                 </div>
               </div>
