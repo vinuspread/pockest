@@ -59,3 +59,5 @@ temp/
 # Sensitive & Backup
 *.txt
 .env.bak
+
+dist-web/

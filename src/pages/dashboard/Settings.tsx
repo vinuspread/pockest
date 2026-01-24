@@ -1,6 +1,5 @@
 import { useAuthStore } from '../../store/useAuthStore';
-import { LogOut, UserX, Info, Heart, Github } from 'lucide-react';
-import manifest from '../../../manifest.json';
+import { LogOut, UserX } from 'lucide-react';
 
 export default function Settings() {
   const { user, signOut, withdraw } = useAuthStore();
