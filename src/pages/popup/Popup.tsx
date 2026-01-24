@@ -564,8 +564,10 @@ export default function Popup() {
 
           logger.log('Image processed:', finalImageUrl);
         } catch (imgError) {
-          logger.warn('Image optimization failed, using original:', imgError);
-          // 실패 시 원본 사용 (이미 finalImageUrl = currentImageUrl 상태)
+          logger.warn('Image optimization failed:', imgError);
+          // 실패 시 이미지 없이 저장 (CORS 문제 방지)
+          finalImageUrl = null;
+          finalBlurhash = null;
         }
       }
 

@@ -42,9 +42,12 @@ export function ShareModal({
     // 나머지 아이템 개수
     const remainingCount = Math.max(0, items.length - 9);
     
-    // 이미지 프리로드
+    // 이미지 프리로드 (Supabase URL만)
     const preloadImages = () => {
-        const imageUrls = displayItems.filter(item => item.image_url).map(item => item.image_url!);
+        const imageUrls = displayItems
+            .filter(item => item.image_url?.includes('supabase.co/storage'))
+            .map(item => item.image_url!);
+            
         if (imageUrls.length === 0) {
             setImagesLoaded(true);
             return;
@@ -175,22 +178,28 @@ export function ShareModal({
 
                                 {/* Card Grid */}
                                 <div className="relative z-10 grid grid-cols-3 gap-2 mb-6">
-                                    {displayItems.map((item) => (
-                                        <div key={item.id} className="aspect-square bg-white rounded-lg overflow-hidden shadow-sm border border-white/50">
-                                            {item.image_url ? (
-                                                <img
-                                                    src={item.image_url}
-                                                    alt=""
-                                                    className="w-full h-full object-cover"
-                                                    crossOrigin="anonymous" // CORS issue mitigation
-                                                />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-300">
-                                                    <ShoppingBag className="w-4 h-4" />
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
+                                    {displayItems.map((item) => {
+                                        // Supabase Storage URL만 허용 (CORS 문제 방지)
+                                        const isSupabaseUrl = item.image_url?.includes('supabase.co/storage');
+                                        const safeImageUrl = isSupabaseUrl ? item.image_url : null;
+                                        
+                                        return (
+                                            <div key={item.id} className="aspect-square bg-white rounded-lg overflow-hidden shadow-sm border border-white/50">
+                                                {safeImageUrl ? (
+                                                    <img
+                                                        src={safeImageUrl}
+                                                        alt=""
+                                                        className="w-full h-full object-cover"
+                                                        crossOrigin="anonymous"
+                                                    />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-300">
+                                                        <ShoppingBag className="w-4 h-4" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
                                     {/* 빈 칸 채우기 (9개 미만일 때) */}
                                     {Array.from({ length: Math.max(0, 9 - items.length) }).map((_, i) => (
                                         <div key={`empty-${i}`} className="aspect-square bg-white/5 rounded-lg border border-white/10" />
