@@ -10,15 +10,13 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('[Supabase] Missing environment variables. Check .env or Vercel settings.');
 }
 
-/**
- * Supabase Client 설정
- * Chrome Extension 환경에서는 detectSessionInUrl을 비활성화해야 함
- */
+const isExtension = window.location.protocol.startsWith('chrome-extension');
+
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: false,
+    detectSessionInUrl: !isExtension, // 웹에서는 URL 세션 감지 활성화
     storage: typeof window !== 'undefined' ? window.localStorage : undefined,
     flowType: 'pkce',
   },

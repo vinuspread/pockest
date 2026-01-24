@@ -52,8 +52,15 @@ export const useItemStore = create<ItemState>((set, get) => ({
         const { user } = useAuthStore.getState();
         if (!user) return;
 
-        set({ items: [], itemsLoading: true, itemsError: null, selectedPocketId: pocketId });
-        console.log('[ItemStore] Fetching Pocket:', pocketId);
+        // Context switch check: If same pocket, keep items (refresh). Else clear.
+        const isSameContext = get().selectedPocketId === pocketId;
+        set({
+            items: isSameContext ? get().items : [],
+            itemsLoading: true,
+            itemsError: null,
+            selectedPocketId: pocketId
+        });
+        console.log('[ItemStore] Fetching Pocket:', pocketId, isSameContext ? '(Refresh)' : '(New)');
 
         try {
             const { data, error, count } = await supabase
@@ -75,8 +82,17 @@ export const useItemStore = create<ItemState>((set, get) => ({
         const { user } = useAuthStore.getState();
         if (!user) return;
 
-        set({ items: [], itemsLoading: true, itemsError: null, selectedPocketId: null });
-        console.log('[ItemStore] Fetching Pinned Items');
+        // Context check: If already null (system view), keep items. 
+        // Note: We can't distinguish between 'Pinned' and 'Today' easily without excessive state, 
+        // but keeping items for system view refresh is generally safe or acceptable flicker reduction.
+        const isSystemView = get().selectedPocketId === null;
+        set({
+            items: isSystemView ? get().items : [],
+            itemsLoading: true,
+            itemsError: null,
+            selectedPocketId: null
+        });
+        console.log('[ItemStore] Fetching Pinned Items', isSystemView ? '(Refresh)' : '(New)');
 
         try {
             const { data, error, count } = await supabase
@@ -98,8 +114,14 @@ export const useItemStore = create<ItemState>((set, get) => ({
         const { user } = useAuthStore.getState();
         if (!user) return;
 
-        set({ items: [], itemsLoading: true, itemsError: null, selectedPocketId: null });
-        console.log('[ItemStore] Fetching Today Items');
+        const isSystemView = get().selectedPocketId === null;
+        set({
+            items: isSystemView ? get().items : [],
+            itemsLoading: true,
+            itemsError: null,
+            selectedPocketId: null
+        });
+        console.log('[ItemStore] Fetching Today Items', isSystemView ? '(Refresh)' : '(New)');
 
         try {
             const oneDayAgo = new Date();
@@ -124,8 +146,14 @@ export const useItemStore = create<ItemState>((set, get) => ({
         const { user } = useAuthStore.getState();
         if (!user) return;
 
-        set({ items: [], itemsLoading: true, itemsError: null, selectedPocketId: null });
-        console.log('[ItemStore] Fetching Trash Items');
+        const isSystemView = get().selectedPocketId === null;
+        set({
+            items: isSystemView ? get().items : [],
+            itemsLoading: true,
+            itemsError: null,
+            selectedPocketId: null
+        });
+        console.log('[ItemStore] Fetching Trash Items', isSystemView ? '(Refresh)' : '(New)');
 
         try {
             const { data, error, count } = await supabase
@@ -146,8 +174,14 @@ export const useItemStore = create<ItemState>((set, get) => ({
         const { user } = useAuthStore.getState();
         if (!user) return;
 
-        set({ items: [], itemsLoading: true, itemsError: null, selectedPocketId: null });
-        console.log('[ItemStore] Fetching All Items');
+        const isSystemView = get().selectedPocketId === null;
+        set({
+            items: isSystemView ? get().items : [],
+            itemsLoading: true,
+            itemsError: null,
+            selectedPocketId: null
+        });
+        console.log('[ItemStore] Fetching All Items', isSystemView ? '(Refresh)' : '(New)');
 
         try {
             const { data, error, count } = await supabase
@@ -168,6 +202,8 @@ export const useItemStore = create<ItemState>((set, get) => ({
         const { user } = useAuthStore.getState();
         if (!user || !query.trim()) return;
 
+        // Search always resets items because results are different
+        // Search always resets items because results are different
         set({ items: [], itemsLoading: true, itemsError: null, selectedPocketId: null });
         console.log('[ItemStore] Searching items:', query);
 
