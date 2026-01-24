@@ -247,6 +247,58 @@ export type Database = {
             foreignKeyName: "click_logs_platform_id_fkey";
             columns: ["platform_id"];
             isOneToOne: false;
+            referencedRelation: "platforms";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      unregistered_sites: {
+        Row: {
+          id: string;
+          domain: string;
+          full_url: string;
+          user_id: string | null;
+          visit_count: number;
+          last_visited_at: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          domain: string;
+          full_url: string;
+          user_id?: string | null;
+          visit_count?: number;
+          last_visited_at?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          domain?: string;
+          full_url?: string;
+          user_id?: string | null;
+          visit_count?: number;
+          last_visited_at?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "click_logs_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "click_logs_item_id_fkey";
+            columns: ["item_id"];
+            isOneToOne: false;
+            referencedRelation: "items";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "click_logs_platform_id_fkey";
+            columns: ["platform_id"];
+            isOneToOne: false;
             referencedRelation: "affiliate_platforms";
             referencedColumns: ["id"];
           }

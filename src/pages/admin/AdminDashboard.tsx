@@ -3,7 +3,8 @@ import { supabase } from '@/services/supabase/client';
 import { Button, Card, CardContent } from '@/components/ui';
 import { AddPlatformModal } from '@/components/admin/AddPlatformModal';
 import { UserManagement } from '@/components/admin/UserManagement'; // Import
-import { Plus, Users, BarChart3, Link as LinkIcon } from 'lucide-react'; // Added icons
+import { UnregisteredSitesPanel } from '@/components/admin/UnregisteredSitesPanel';
+import { Plus, Users, BarChart3, Link as LinkIcon, Store } from 'lucide-react'; // Added icons
 
 interface AffiliatePlatform {
     id: string;
@@ -19,7 +20,7 @@ export default function AdminDashboard() {
     const [loading, setLoading] = useState(true);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [selectedPlatform, setSelectedPlatform] = useState<AffiliatePlatform | null>(null);
-    const [activeTab, setActiveTab] = useState<'platforms' | 'users' | 'analytics'>('platforms'); // Tab State
+    const [activeTab, setActiveTab] = useState<'platforms' | 'users' | 'analytics' | 'unregistered'>('platforms'); // Tab State
 
     useEffect(() => {
         if (activeTab === 'platforms') {
@@ -109,6 +110,13 @@ export default function AdminDashboard() {
                             회원 관리
                         </button>
                         <button
+                            onClick={() => setActiveTab('unregistered')}
+                            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'unregistered' ? 'bg-primary-50 text-primary-700 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+                        >
+                            <Store className="w-4 h-4" />
+                            미등록 쇼핑몰
+                        </button>
+                        <button
                             onClick={() => setActiveTab('analytics')}
                             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'analytics' ? 'bg-primary-50 text-primary-700 shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
                         >
@@ -119,6 +127,8 @@ export default function AdminDashboard() {
                 </div>
 
                 {activeTab === 'users' && <UserManagement />}
+
+                {activeTab === 'unregistered' && <UnregisteredSitesPanel />}
 
                 {activeTab === 'analytics' && (
                     <div className="p-12 text-center text-gray-500 bg-white rounded-2xl border border-gray-200 border-dashed">

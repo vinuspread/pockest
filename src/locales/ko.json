@@ -86,6 +86,8 @@
     "not_extension": "Extension 환경이 아닙니다.",
     "restricted_page": "이 페이지에서는 상품 정보를 가져올 수 없습니다.",
     "no_tab_info": "탭 정보를 가져올 수 없습니다.",
-    "product_not_found": "상품 정보를 찾을 수 없습니다."
+    "product_not_found": "상품 정보를 찾을 수 없습니다.",
+    "unregistered_mall": "해당 쇼핑몰에서는 사용할 수 없습니다.",
+    "not_shopping_site": "쇼핑몰에서만 이용할 수 있습니다."
   }
 }

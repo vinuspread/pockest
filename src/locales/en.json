@@ -82,7 +82,9 @@
     "not_extension": "Not in extension environment.",
     "restricted_page": "Cannot fetch product info from this page.",
     "no_tab_info": "Cannot get tab info.",
-    "product_not_found": "Product info not found."
+    "product_not_found": "Product info not found.",
+    "unregistered_mall": "This shopping mall is not supported yet.",
+    "not_shopping_site": "This feature is only available on shopping sites."
   }
 }
 

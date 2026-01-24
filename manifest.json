@@ -92,10 +92,10 @@
     }
   ],
   "permissions": [
-    "identity",
     "sidePanel",
     "storage",
-    "activeTab"
+    "activeTab",
+    "scripting"
   ],
   "host_permissions": [
     "http://localhost:*/*",
