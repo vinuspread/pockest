@@ -97,6 +97,7 @@
     }
   ],
   "permissions": [
+    "identity",
     "sidePanel",
     "storage",
     "activeTab",

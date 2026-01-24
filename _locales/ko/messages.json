@@ -4,7 +4,7 @@
         "description": "확장 프로그램 이름"
     },
     "extDescription": {
-        "message": "쇼핑 위시리스트 & 가격 비교 - 모든 쇼핑몰에서 상품 저장",
+        "message": "마음에 들었던 그 상품, 어디서 봤더라? 더 이상 찾아 헤매지 마세요! 전 세계 80+ 쇼핑몰 상품을 한곳에 저장하고 관리하며 친구와 공유하세요! 당신의 스마트한 위시리스트, 포케스트.",
         "description": "chrome://extensions에 표시되는 설명"
     },
     "actionTitle": {
