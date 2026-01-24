@@ -1,5 +1,5 @@
 
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import html2canvas from 'html2canvas';
 import { X, Download, Copy, Share2, Check, ShoppingBag } from 'lucide-react';
 import { formatPrice } from '@/utils';
@@ -34,8 +34,8 @@ export function ShareModal({
     const [copied, setCopied] = useState(false);
     const [imagesLoaded, setImagesLoaded] = useState(false);
 
-    // 공유용으로 표시할 아이템 (최대 9개)
-    const displayItems = items.slice(0, 9);
+    // 공유용으로 표시할 아이템 (최대 9개) - useMemo로 메모이제이션
+    const displayItems = useMemo(() => items.slice(0, 9), [items]);
 
     // 나머지 아이템 개수
     const remainingCount = Math.max(0, items.length - 9);
