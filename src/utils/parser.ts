@@ -185,15 +185,48 @@ function isValidProductImage(src: string): boolean {
  * 이미지 URL에서 실제 소스 추출 (Lazy Loading 대응)
  */
 function extractImageSrc(img: HTMLImageElement): string {
-  return img.src ||
-    img.getAttribute('data-src') ||
-    img.getAttribute('data-original') ||
-    img.getAttribute('data-lazy-src') ||
-    img.getAttribute('data-image') ||
-    img.getAttribute('data-lazy') ||
-    img.getAttribute('data-zoom-image') ||
-    img.getAttribute('data-large-image') ||
-    '';
+  // 1. 실제 로드된 이미지
+  if (img.src && !img.src.includes('data:image') && !img.src.includes('blank')) {
+    return img.src;
+  }
+  
+  // 2. srcset에서 가장 큰 이미지 추출
+  if (img.srcset) {
+    const srcsetParts = img.srcset.split(',');
+    const largest = srcsetParts
+      .map(part => {
+        const [url, size] = part.trim().split(/\s+/);
+        const width = size ? parseInt(size) : 0;
+        return { url, width };
+      })
+      .sort((a, b) => b.width - a.width)[0];
+    if (largest?.url) return largest.url;
+  }
+  
+  // 3. data-* 속성들 (우선순위 순)
+  const dataAttrs = [
+    'data-zoom-image',
+    'data-large-image',
+    'data-original',
+    'data-src',
+    'data-lazy-src',
+    'data-image',
+    'data-lazy',
+    'data-original-src',
+    'data-img-url',
+    'data-product-image',
+    'data-hi-res-src',
+    'data-high-res',
+  ];
+  
+  for (const attr of dataAttrs) {
+    const value = img.getAttribute(attr);
+    if (value && !value.includes('data:image')) {
+      return value;
+    }
+  }
+  
+  return '';
 }
 
 /**
@@ -224,35 +257,97 @@ function getMallSpecificImages(doc: Document, hostname: string): string[] {
 }
 
 /**
- * 본문에서 큰 이미지들 찾기 (300px 이상)
+ * 이미지 점수 계산 (크기 + 위치 + 속성 기반)
+ */
+function scoreImage(img: HTMLImageElement, doc: Document): number {
+  let score = 0;
+  
+  // 1. 크기 점수 (자연 크기 우선, 스타일 크기 차선)
+  const width = img.naturalWidth || parseInt(img.getAttribute('width') || '0', 10) || img.offsetWidth;
+  const height = img.naturalHeight || parseInt(img.getAttribute('height') || '0', 10) || img.offsetHeight;
+  
+  if (width >= 500) score += 50;
+  else if (width >= 300) score += 30;
+  else if (width >= 200) score += 10;
+  
+  // 2. 비율 점수 (정사각형에 가까울수록 높음)
+  if (width > 0 && height > 0) {
+    const ratio = width / height;
+    if (ratio > 0.7 && ratio < 1.5) score += 20; // 정사각형에 가까움
+    else if (ratio > 0.5 && ratio < 2) score += 10;
+    else if (ratio < 0.3 || ratio > 4) score -= 30; // 배너 형태
+  }
+  
+  // 3. 위치 점수 (상단에 있을수록 높음)
+  const rect = img.getBoundingClientRect();
+  const scrollY = window.scrollY || doc.documentElement.scrollTop;
+  const distanceFromTop = rect.top + scrollY;
+  if (distanceFromTop < 1000) score += 15;
+  else if (distanceFromTop < 2000) score += 5;
+  
+  // 4. 클래스/ID 키워드 점수
+  const classList = img.className.toLowerCase();
+  const idName = img.id.toLowerCase();
+  const combined = classList + ' ' + idName;
+  
+  const goodKeywords = ['product', 'item', 'goods', 'main', 'detail', 'zoom', 'large', 'image', 'photo'];
+  const badKeywords = ['thumb', 'thumbnail', 'small', 'mini', 'icon', 'logo', 'banner', 'ad'];
+  
+  goodKeywords.forEach(kw => {
+    if (combined.includes(kw)) score += 10;
+  });
+  
+  badKeywords.forEach(kw => {
+    if (combined.includes(kw)) score -= 20;
+  });
+  
+  // 5. 부모 요소 점수 (상품 상세 영역에 있는지)
+  let parent = img.parentElement;
+  let depth = 0;
+  while (parent && depth < 5) {
+    const parentClass = parent.className?.toLowerCase() || '';
+    const parentId = parent.id?.toLowerCase() || '';
+    const parentCombined = parentClass + ' ' + parentId;
+    
+    if (parentCombined.match(/product|detail|item|goods|main/)) {
+      score += 15;
+      break;
+    }
+    parent = parent.parentElement;
+    depth++;
+  }
+  
+  // 6. data 속성 점수
+  if (img.getAttribute('data-zoom-image') || img.getAttribute('data-large-image')) {
+    score += 25;
+  }
+  
+  return score;
+}
+
+/**
+ * 본문에서 상품 이미지들 찾기 (점수 기반)
  */
 function findLargeImages(doc: Document): string[] {
   const images = doc.querySelectorAll('img');
-  const candidates: Array<{ src: string; area: number }> = [];
-  const MIN_SIZE = 300;
+  const candidates: Array<{ src: string; score: number }> = [];
 
   for (const img of images) {
     const src = extractImageSrc(img);
     if (!isValidProductImage(src)) continue;
 
-    // 크기 확인 (자연 크기 또는 속성값)
-    const width = img.naturalWidth || parseInt(img.getAttribute('width') || '0', 10);
-    const height = img.naturalHeight || parseInt(img.getAttribute('height') || '0', 10);
-
-    // 최소 크기 체크
-    if (width >= MIN_SIZE || height >= MIN_SIZE) {
-      // 비율 체크 (너무 가로로 긴 이미지는 배너일 가능성)
-      const ratio = width / (height || 1);
-      if (ratio > 0.3 && ratio < 4) { // 세로 3:1 ~ 가로 4:1 사이만 허용
-        candidates.push({ src: resolveUrl(src, doc), area: width * height });
-      }
+    const score = scoreImage(img, doc);
+    
+    // 최소 점수 컷오프
+    if (score > 0) {
+      candidates.push({ src: resolveUrl(src, doc), score });
     }
   }
 
-  // 크기 순으로 정렬 후 상위 10개 반환
+  // 점수 순으로 정렬 후 상위 15개 반환
   return candidates
-    .sort((a, b) => b.area - a.area)
-    .slice(0, 10)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 15)
     .map((c) => c.src);
 }
 
@@ -611,16 +706,16 @@ export function parseProductFromPage(doc: Document = document): ProductData {
  */
 export async function parseProductWithRetry(
   doc: Document = document,
-  maxRetries: number = 5,
-  intervalMs: number = 800
+  maxRetries: number = 6,
+  intervalMs: number = 1000
 ): Promise<ProductData> {
   const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
   for (let i = 0; i < maxRetries; i++) {
     const data = parseProductFromPage(doc);
 
-    // 성공 조건: 가격과 이미지가 모두 있으면 즉시 반환
-    if (data.price !== null && data.imageUrl) {
+    // 성공 조건: 이미지가 있으면 즉시 반환 (가격은 선택적)
+    if (data.imageUrl && data.imageUrl.length > 0) {
       return data;
     }
 
@@ -629,7 +724,7 @@ export async function parseProductWithRetry(
       return data;
     }
 
-    // 대기 후 재시도
+    // 대기 후 재시도 (SPA/Lazy Loading 대응)
     await sleep(intervalMs);
   }
 
