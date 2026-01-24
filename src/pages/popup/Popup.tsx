@@ -16,8 +16,14 @@ import { processImage, uploadThumbnail } from '@/utils/imageOptimizer';
 import { AuthForms } from '@/components/auth/AuthForms';
 import { logger } from '@/utils/logger';
 
-type ScrapeStatus = 'idle' | 'scraping' | 'saving' | 'success' | 'error';
+type ScrapeStatus = 'idle' | 'scraping' | 'saving' | 'success' | 'error' | 'unsupported'; // Added 'unsupported'
 type TabType = 'pocket' | 'today';
+
+const SUPPORTED_MALLS = [
+  { category: 'Global', names: ['Amazon', 'AliExpress', 'eBay', 'Walmart', 'Costco', 'Temu'] },
+  { category: 'Korea', names: ['네이버쇼핑', '쿠팡', 'G마켓', '11번가', 'SSG', '무신사', '29CM'] },
+  { category: 'Others', names: ['Rakuten', 'Taobao', 'ZARA', 'IKEA', 'H&M', 'Nike'] }
+];
 
 const PocketThumbnail = ({ images = [] }: { images?: string[] }) => {
   const displayImages = images.slice(0, 4);
@@ -129,6 +135,9 @@ export default function Popup() {
   const [isCreatingPocket, setIsCreatingPocket] = useState(false);
   const [newPocketName, setNewPocketName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+
+  // 지원 쇼핑몰 리스트 모달 상태
+  const [showSupportedMalls, setShowSupportedMalls] = useState(false);
 
   // 로그인 폼 상태
   // const [isLoginMode, setIsLoginMode] = useState(true); // Moved to AuthForms
@@ -718,6 +727,26 @@ export default function Popup() {
             <span className="text-sm text-gray-500">{t('popup.fetching_product')}</span>
           </div>
         </div>
+      ) : status === 'unsupported' ? (
+        <div className="flex-none px-6 py-6 bg-gray-50 border-b border-gray-100 flex flex-col items-center text-center gap-3">
+          <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-1">
+            <ShoppingBag className="w-6 h-6 text-gray-400" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-gray-900 mb-1">
+              {t('error.unsupported_site_title')}
+            </h3>
+            <p className="text-sm text-gray-500">
+              {t('error.unsupported_site_desc')}
+            </p>
+          </div>
+          <button
+            onClick={() => setShowSupportedMalls(true)}
+            className="text-xs font-semibold text-primary-600 hover:text-primary-700 bg-primary-50 px-3 py-1.5 rounded-full transition-colors mt-1"
+          >
+            {t('popup.view_supported_malls')}
+          </button>
+        </div>
       ) : status === 'error' || (!productData && status === 'idle') ? (
         <div className="flex-none px-4 py-4 bg-gray-50 border-b border-gray-100">
           <div className="flex items-center gap-3">
@@ -1028,6 +1057,40 @@ export default function Popup() {
           type={toast.type}
           onClose={hideToast}
         />
+      )}
+
+      {/* Supported Malls Modal */}
+      {showSupportedMalls && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden max-h-[80vh] flex flex-col">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="font-bold text-gray-900">{t('popup.supported_malls_title')}</h3>
+              <button
+                onClick={() => setShowSupportedMalls(false)}
+                className="p-1 hover:bg-gray-100 rounded-full"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="overflow-y-auto p-5 space-y-6">
+              {SUPPORTED_MALLS.map((category) => (
+                <div key={category.category}>
+                  <h4 className="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider">{category.category}</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {category.names.map((name) => (
+                      <span key={name} className="px-3 py-1.5 bg-gray-50 text-gray-700 text-sm rounded-lg font-medium border border-gray-100">
+                        {name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="p-4 bg-gray-50 border-t border-gray-100 text-center">
+              <p className="text-xs text-gray-500">이 외에도 다양한 쇼핑몰을 지원합니다.</p>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
