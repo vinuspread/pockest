@@ -1,5 +1,5 @@
 
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import html2canvas from 'html2canvas';
 import { X, Download, Copy, Share2, Check, ShoppingBag } from 'lucide-react';
 import { formatPrice } from '@/utils';
@@ -34,8 +34,6 @@ export function ShareModal({
     const [copied, setCopied] = useState(false);
     const [imagesLoaded, setImagesLoaded] = useState(false);
 
-    if (!isOpen) return null;
-
     // 공유용으로 표시할 아이템 (최대 9개)
     const displayItems = items.slice(0, 9);
 
@@ -43,7 +41,7 @@ export function ShareModal({
     const remainingCount = Math.max(0, items.length - 9);
     
     // 이미지 프리로드 (Supabase URL만)
-    const preloadImages = () => {
+    const preloadImages = useCallback(() => {
         const imageUrls = displayItems
             .filter(item => item.image_url?.includes('supabase.co/storage'))
             .map(item => item.image_url!);
@@ -71,7 +69,9 @@ export function ShareModal({
             };
             img.src = url;
         });
-    };
+    }, [displayItems]);
+    
+    if (!isOpen) return null;
 
     const handleDownloadImage = async () => {
         if (!cardRef.current) return;
