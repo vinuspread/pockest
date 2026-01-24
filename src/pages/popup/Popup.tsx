@@ -14,6 +14,7 @@ import { cn, formatPrice, openDashboard } from '@/utils';
 import type { ProductData } from '@/utils/parser';
 import { processImage, uploadThumbnail } from '@/utils/imageOptimizer';
 import { AuthForms } from '@/components/auth/AuthForms';
+import { logger } from '@/utils/logger';
 
 type ScrapeStatus = 'idle' | 'scraping' | 'saving' | 'success' | 'error';
 type TabType = 'pocket' | 'today';
@@ -142,11 +143,11 @@ export default function Popup() {
   useEffect(() => {
     const initAuth = async () => {
       try {
-        console.log('[Popup] 🔄 Initializing auth session...');
+        logger.log('Initializing auth session...');
         await useAuthStore.getState().initialize();
-        console.log('[Popup] ✅ Auth initialization complete');
+        logger.log('Auth initialization complete');
       } catch (error) {
-        console.error('[Popup] ❌ Init error:', error);
+        logger.error('Init error:', error);
       }
     };
 
@@ -168,23 +169,23 @@ export default function Popup() {
   // ============================================================
   useEffect(() => {
     if (!isAuthenticated) {
-      console.log('[Popup] ⚠️ Not authenticated, skipping data fetch');
+      logger.log('⚠️ Not authenticated, skipping data fetch');
       return;
     }
 
     // 로그인 완료 시 데이터 자동 로드
     const loadData = async () => {
       try {
-        console.log('[Popup] 🔄 Authenticated! Loading pockets and today items...');
+        logger.log('Authenticated! Loading pockets and today items...');
 
         await Promise.all([
           usePocketStore.getState().fetchPockets(),
           useItemStore.getState().fetchTodayItems()
         ]);
 
-        console.log('[Popup] 🎉 Data loaded successfully');
+        logger.log('Data loaded successfully');
       } catch (error) {
-        console.error('[Popup] ❌ Error loading data:', error);
+        logger.error('Error loading data:', error);
       }
     };
 
@@ -199,7 +200,7 @@ export default function Popup() {
 
     const handleRefresh = async () => {
       if (document.visibilityState === 'visible') {
-        console.log('[Popup] 👁️ Sidebar visible/focused, refreshing data...');
+        logger.log('Sidebar visible/focused, refreshing data...');
         await Promise.all([
           usePocketStore.getState().fetchPockets(),
           useItemStore.getState().fetchTodayItems()
@@ -261,7 +262,7 @@ export default function Popup() {
                     // Suppress 'Receiving end does not exist' noise as it's common on non-injected pages
                     const msg = chrome.runtime.lastError.message;
                     if (!msg?.includes('Receiving end does not exist')) {
-                      console.warn(`[Popup] Retry ${i + 1}/${retries}:`, msg);
+                      logger.warn(`Retry ${i + 1}/${retries}:`, msg);
                     }
                     resolve(null);
                   } else {
@@ -290,7 +291,7 @@ export default function Popup() {
               await new Promise(resolve => setTimeout(resolve, delay));
             }
           } catch (error) {
-            console.error(`[Popup] Retry ${i + 1} failed:`, error);
+            logger.error(`Retry ${i + 1} failed:`, error);
           }
         }
 
@@ -301,7 +302,7 @@ export default function Popup() {
 
       await sendMessageWithRetry();
     } catch (error) {
-      console.warn('[Popup] Scrape error:', error);
+      logger.warn('Scrape error:', error);
       setScrapeError(t('common.error'));
       setStatus('error');
     }
@@ -316,7 +317,7 @@ export default function Popup() {
     scrapeCurrentPage();
 
     const handleTabActivated = (activeInfo: chrome.tabs.TabActiveInfo) => {
-      console.log('[Popup] Tab activated:', activeInfo.tabId);
+      logger.log('Tab activated:', activeInfo.tabId);
       setTimeout(() => {
         scrapeCurrentPage();
       }, 100);
@@ -329,7 +330,7 @@ export default function Popup() {
     ) => {
       if (changeInfo.status === 'complete' && tab.active) {
         if (tab.url && tab.url !== currentUrlRef.current) {
-          console.log('[Popup] Tab URL changed:', tab.url);
+          logger.log('Tab URL changed:', tab.url);
           currentUrlRef.current = tab.url;
           scrapeCurrentPage();
         }
@@ -353,9 +354,9 @@ export default function Popup() {
       // DB RPC(get_today_items)로 24시간 이내 데이터 조회
       fetchToday().then(() => {
         // fetchToday가 items 상태를 업데이트하므로 별도 필터링 불필요
-        console.log('[Popup] Today items fetched from DB (24h logic)');
+        logger.log('Today items fetched from DB (24h logic)');
       }).catch((err) => {
-        console.error('[Popup] Failed to fetch today items:', err);
+        logger.error('Failed to fetch today items:', err);
       });
     }
   }, [activeTab, isAuthenticated, fetchToday]);
@@ -515,16 +516,16 @@ export default function Popup() {
       // 이미지 최적화 및 업로드 시도
       if (currentImageUrl) {
         try {
-          console.log('[Popup] 🖼️ Optimizing image...', currentImageUrl);
+          logger.log('Optimizing image...', currentImageUrl);
           const { blob, blurhash } = await processImage(currentImageUrl);
 
-          console.log('[Popup] ☁️ Uploading thumbnail...');
+          logger.log('Uploading thumbnail...');
           finalImageUrl = await uploadThumbnail(user.id, blob);
           finalBlurhash = blurhash;
 
-          console.log('[Popup] ✅ Image processed:', finalImageUrl);
+          logger.log('Image processed:', finalImageUrl);
         } catch (imgError) {
-          console.warn('[Popup] ⚠️ Image optimization failed, using original:', imgError);
+          logger.warn('Image optimization failed, using original:', imgError);
           // 실패 시 원본 사용 (이미 finalImageUrl = currentImageUrl 상태)
         }
       }
@@ -553,7 +554,7 @@ export default function Popup() {
         throw new Error('Save failed');
       }
     } catch (error) {
-      console.error('[Popup] Save error:', error);
+      logger.error('Save error:', error);
       setStatus('error');
       showToast(t('toast.save_failed'), 'error');
     }
@@ -603,7 +604,7 @@ export default function Popup() {
         refreshPockets();
       }
     } catch (error) {
-      console.error('[Popup] Create pocket error:', error);
+      logger.error('Create pocket error:', error);
       const errorMessage = error instanceof Error ? error.message : t('common.error');
       showToast(errorMessage, 'error');
     } finally {

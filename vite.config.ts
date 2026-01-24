@@ -23,5 +23,12 @@ export default defineConfig({
         dashboard: path.resolve(__dirname, 'index.html'),
       },
     },
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+      },
+    },
   },
 })

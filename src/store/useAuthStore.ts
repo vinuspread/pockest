@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { supabase } from '@/services/supabase/client';
 import type { User, AuthStatus } from '@/types';
 import type { Profile } from '@/types/database';
+import { logger } from '@/utils/logger';
 
 interface AuthState {
   user: User | null;
@@ -27,19 +28,19 @@ export const useAuthStore = create<AuthState>()(
       error: null,
 
       initialize: async () => {
-        console.log('[AuthStore] initialize: starting...');
+        logger.log('initialize: starting...');
         try {
           const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-          console.log('[AuthStore] initialize: getSession result', { session, sessionError });
+          logger.log('initialize: getSession result', { session, sessionError });
 
           if (sessionError) {
-            console.warn('[Auth] Session error:', sessionError.message);
+            logger.warn('Session error:', sessionError.message);
             set({ user: null, status: 'unauthenticated', error: null });
             return;
           }
 
           if (session?.user) {
-            console.log('[AuthStore] initialize: user found, fetching profile');
+            logger.log('initialize: user found, fetching profile');
             // profiles 테이블에서 추가 정보 가져오기
             const { data: profile, error: profileError } = await supabase
               .from('profiles')
@@ -48,7 +49,7 @@ export const useAuthStore = create<AuthState>()(
               .single();
 
             if (profileError) {
-              console.warn('[Auth] Profile fetch warning:', profileError.message);
+              logger.warn('Profile fetch warning:', profileError.message);
             }
 
             const profileData = profile as Pick<Profile, 'tier' | 'affiliate_agreed' | 'gender' | 'age_group'> | null;
@@ -66,15 +67,15 @@ export const useAuthStore = create<AuthState>()(
               status: 'authenticated',
               error: null,
             });
-            console.log('[AuthStore] initialize: authenticated set');
+            logger.log('initialize: authenticated set');
             return;
           }
 
           set({ user: null, status: 'unauthenticated', error: null });
-          console.log('[AuthStore] initialize: unauthenticated set');
+          logger.log('initialize: unauthenticated set');
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          console.error('[Auth] Initialize exception:', errorMessage);
+          logger.error('Initialize exception:', errorMessage);
           set({ user: null, status: 'unauthenticated', error: null });
         }
       },
@@ -89,7 +90,7 @@ export const useAuthStore = create<AuthState>()(
           });
 
           if (error) {
-            console.error('[Auth] SignIn error:', error.message);
+            logger.error('SignIn error:', error.message);
             const errorMsg = error.message === 'Invalid login credentials'
               ? '이메일 또는 비밀번호가 올바르지 않습니다.'
               : error.message;
@@ -127,7 +128,7 @@ export const useAuthStore = create<AuthState>()(
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : '로그인에 실패했습니다.';
-          console.error('[Auth] SignIn exception:', errorMessage);
+          logger.error('SignIn exception:', errorMessage);
           set({
             user: null,
             status: 'unauthenticated',
@@ -149,7 +150,7 @@ export const useAuthStore = create<AuthState>()(
           });
 
           if (error) {
-            console.error('[Auth] SignUp error:', error.message);
+            logger.error('SignUp error:', error.message);
             let userFriendlyError = error.message;
 
             if (error.message.includes('already registered')) {
@@ -202,7 +203,7 @@ export const useAuthStore = create<AuthState>()(
           }
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : '회원가입에 실패했습니다.';
-          console.error('[Auth] SignUp exception:', errorMessage);
+          logger.error('SignUp exception:', errorMessage);
           set({
             user: null,
             status: 'unauthenticated',
@@ -217,12 +218,11 @@ export const useAuthStore = create<AuthState>()(
         try {
           // 1. 크롬 익스텐션 환경인지 확인
           const isExtension = typeof chrome !== 'undefined' && chrome.identity;
-          console.log('[AuthStore] signInWithGoogle: Starting...', { isExtension });
-
+          logger.log('signInWithGoogle: Starting...', { isExtension });
           if (isExtension) {
             // [Extension] chrome.identity 사용
             const redirectUrl = chrome.identity.getRedirectURL();
-            console.log('[AuthStore] Using Extension Redirect URL:', redirectUrl);
+            logger.log('Using Extension Redirect URL:', redirectUrl);
 
             const { data, error } = await supabase.auth.signInWithOAuth({
               provider: 'google',
@@ -238,7 +238,7 @@ export const useAuthStore = create<AuthState>()(
             }
             if (!data?.url) throw new Error('No login URL returned');
 
-            console.log('[AuthStore] Launching WebAuthFlow...', data.url);
+            logger.log('Launching WebAuthFlow...', data.url);
 
             // launchWebAuthFlow를 Promise로 감싸서 에러 핸들링 강화
             const responseUrl = await new Promise<string | undefined>((resolve, reject) => {
@@ -258,7 +258,7 @@ export const useAuthStore = create<AuthState>()(
             });
 
             if (!responseUrl) throw new Error('Login cancelled or failed');
-            console.log('[AuthStore] Auth flow completed, URL:', responseUrl);
+            logger.log('Auth flow completed, URL:', responseUrl);
 
             const urlObj = new URL(responseUrl);
             const code = urlObj.searchParams.get('code');
@@ -269,11 +269,11 @@ export const useAuthStore = create<AuthState>()(
             }
 
             if (code) {
-              console.log('[AuthStore] Exchanging code for session...');
+              logger.log('Exchanging code for session...');
               const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
               if (exchangeError) throw exchangeError;
             } else {
-              console.log('[AuthStore] Parsing hash for session...');
+              logger.log('Parsing hash for session...');
               const params = new URLSearchParams(urlObj.hash.substring(1));
               const access_token = params.get('access_token');
               const refresh_token = params.get('refresh_token');
@@ -288,7 +288,7 @@ export const useAuthStore = create<AuthState>()(
             }
           } else {
             // [Web] 일반 리다이렉트 방식 사용
-            console.log('Using Web Redirect Flow');
+            logger.log('Using Web Redirect Flow');
             const { error } = await supabase.auth.signInWithOAuth({
               provider: 'google',
               options: {
@@ -303,12 +303,12 @@ export const useAuthStore = create<AuthState>()(
             return;
           }
 
-          console.log('[AuthStore] Login Successful');
+          logger.log('Login Successful');
           await get().initialize();
 
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : '구글 로그인에 실패했습니다.';
-          console.error('[AuthStore] Google Login Error:', errorMessage);
+          logger.error('Google Login Error:', errorMessage);
           set({
             user: null,
             status: 'unauthenticated',
@@ -322,12 +322,12 @@ export const useAuthStore = create<AuthState>()(
           const { error } = await supabase.auth.signOut();
 
           if (error) {
-            console.error('[Auth] SignOut error:', error.message);
+            logger.error('SignOut error:', error.message);
           }
 
           set({ user: null, status: 'unauthenticated', error: null });
         } catch (error) {
-          console.error('[Auth] SignOut exception:', error instanceof Error ? error.message : error);
+          logger.error('SignOut exception:', error instanceof Error ? error.message : error);
           set({ user: null, status: 'unauthenticated', error: null });
         }
       },
@@ -340,7 +340,7 @@ export const useAuthStore = create<AuthState>()(
           if (error) throw error;
           await get().signOut();
         } catch (error) {
-          console.error('[Auth] Withdraw error:', error);
+          logger.error('Withdraw error:', error);
           // For now, just sign out to satisfy the UI requirement
           await get().signOut();
         }
