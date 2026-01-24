@@ -52,7 +52,7 @@ export const useItemStore = create<ItemState>((set, get) => ({
         const { user } = useAuthStore.getState();
         if (!user) return;
 
-        set({ itemsLoading: true, itemsError: null, selectedPocketId: pocketId });
+        set({ items: [], itemsLoading: true, itemsError: null, selectedPocketId: pocketId });
         console.log('[ItemStore] Fetching Pocket:', pocketId);
 
         try {
@@ -75,7 +75,7 @@ export const useItemStore = create<ItemState>((set, get) => ({
         const { user } = useAuthStore.getState();
         if (!user) return;
 
-        set({ itemsLoading: true, itemsError: null, selectedPocketId: null });
+        set({ items: [], itemsLoading: true, itemsError: null, selectedPocketId: null });
         console.log('[ItemStore] Fetching Pinned Items');
 
         try {
@@ -98,7 +98,7 @@ export const useItemStore = create<ItemState>((set, get) => ({
         const { user } = useAuthStore.getState();
         if (!user) return;
 
-        set({ itemsLoading: true, itemsError: null, selectedPocketId: null });
+        set({ items: [], itemsLoading: true, itemsError: null, selectedPocketId: null });
         console.log('[ItemStore] Fetching Today Items');
 
         try {
@@ -124,7 +124,7 @@ export const useItemStore = create<ItemState>((set, get) => ({
         const { user } = useAuthStore.getState();
         if (!user) return;
 
-        set({ itemsLoading: true, itemsError: null, selectedPocketId: null });
+        set({ items: [], itemsLoading: true, itemsError: null, selectedPocketId: null });
         console.log('[ItemStore] Fetching Trash Items');
 
         try {
@@ -146,7 +146,7 @@ export const useItemStore = create<ItemState>((set, get) => ({
         const { user } = useAuthStore.getState();
         if (!user) return;
 
-        set({ itemsLoading: true, itemsError: null, selectedPocketId: null });
+        set({ items: [], itemsLoading: true, itemsError: null, selectedPocketId: null });
         console.log('[ItemStore] Fetching All Items');
 
         try {
@@ -168,7 +168,7 @@ export const useItemStore = create<ItemState>((set, get) => ({
         const { user } = useAuthStore.getState();
         if (!user || !query.trim()) return;
 
-        set({ itemsLoading: true, itemsError: null, selectedPocketId: null });
+        set({ items: [], itemsLoading: true, itemsError: null, selectedPocketId: null });
         console.log('[ItemStore] Searching items:', query);
 
         try {

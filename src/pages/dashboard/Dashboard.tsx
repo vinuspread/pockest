@@ -411,7 +411,7 @@ export default function Dashboard() {
         <Header
           onSearch={search}
           onMenuClick={() => setIsMobileMenuOpen(true)}
-          onLogoClick={() => handleViewChange('all')}
+          onLogoClick={() => handleViewChange('folders')}
           onLogout={signOut}
           onCreatePocket={() => setIsCreatePocketModalOpen(true)}
           user={user as any}
@@ -532,11 +532,15 @@ export default function Dashboard() {
                     <Button onClick={() => window.location.reload()} variant="primary">새로고침</Button>
                   </div>
                 ) : currentView === 'folders' ? (
-                  <FolderGrid
-                    pockets={pockets}
-                    onSelectPocket={handleSelectPocket}
-                    onCreatePocket={() => setIsCreatePocketModalOpen(true)}
-                  />
+                  pockets.length === 0 ? (
+                    <EmptyState />
+                  ) : (
+                    <FolderGrid
+                      pockets={pockets}
+                      onSelectPocket={handleSelectPocket}
+                      onCreatePocket={() => setIsCreatePocketModalOpen(true)}
+                    />
+                  )
                 ) : (itemsLoading && (!items || items.length === 0)) || isInitialLoad ? (
                   <div className="flex items-center justify-center py-20">
                     <div className="animate-spin w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full" />
