@@ -68,7 +68,8 @@
     "success": "Success!",
     "confirm": "Confirm",
     "settings": "Settings",
-    "logout": "Logout"
+    "logout": "Logout",
+    "default_pocket": "My Pocket"
   },
   "toast": {
     "item_saved": "Item saved! 🎉",

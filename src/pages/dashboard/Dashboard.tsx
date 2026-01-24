@@ -493,7 +493,7 @@ export default function Dashboard() {
                       }}
                     >
                       <Edit3 className="w-4 h-4" />
-                      <span>수정</span>
+                      <span>포켓수정</span>
                     </Button>
                   )}
 
@@ -518,7 +518,7 @@ export default function Dashboard() {
                       }}
                     >
                       <Trash2 className="w-4 h-4" />
-                      <span>삭제</span>
+                      <span>포켓삭제</span>
                     </Button>
                   )}
                 </div>
