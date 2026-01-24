@@ -328,10 +328,7 @@ export default function Dashboard() {
     return success;
   };
 
-  const handleEditPocket = (id: string) => {
-    setEditingPocketId(id);
-    setIsEditPocketModalOpen(true);
-  };
+
 
   // Monetization Gate 핸들러
   const handleAgreeAffiliate = async () => {
@@ -446,12 +443,6 @@ export default function Dashboard() {
                 onSelectPocket={handleSelectPocket}
                 onClose={() => setIsMobileMenuOpen(false)}
                 onCreatePocket={() => setIsCreatePocketModalOpen(true)}
-                onEditPocket={handleEditPocket}
-                onDeletePocket={(id, name) => {
-                  if (confirm(`'${name}' 포켓을 삭제하시겠습니까?`)) {
-                    handleDeletePocket(id);
-                  }
-                }}
               />
             </div>
           </div>

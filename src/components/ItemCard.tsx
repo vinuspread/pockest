@@ -189,7 +189,7 @@ export const ItemCard = memo(function ItemCard({
                                     onClick={handleAffiliateClick}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    className="flex-[2] flex items-center justify-center gap-1.5 bg-primary-600 text-white font-bold text-sm rounded-xl hover:bg-primary-700 shadow-md shadow-primary-200 transition-all hover:shadow-lg hover:-translate-y-0.5"
+                                    className="flex-[2] flex items-center justify-center gap-1.5 bg-primary-50 text-primary-600 font-bold text-sm rounded-xl hover:bg-primary-600 hover:text-white shadow-sm hover:shadow-lg hover:shadow-primary-200 transition-all hover:-translate-y-0.5"
                                 >
                                     <span>구매하기</span>
                                 </a>

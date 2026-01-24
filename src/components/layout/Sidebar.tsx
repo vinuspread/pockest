@@ -1,5 +1,4 @@
-import { LogOut, Folder, MoreVertical, Edit2, Trash2 } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { LogOut, Folder } from 'lucide-react';
 import { cn } from '@/utils';
 import { useAuth } from '@/hooks';
 import { useNavigate } from 'react-router-dom';
@@ -21,8 +20,6 @@ interface SidebarProps {
   className?: string;
   onClose?: () => void;
   onCreatePocket: () => void;
-  onEditPocket?: (id: string) => void;
-  onDeletePocket?: (id: string, name: string) => void;
 }
 
 interface NavItemProps {
@@ -94,24 +91,9 @@ export function Sidebar({
   className,
   onClose,
   onCreatePocket,
-  onEditPocket,
-  onDeletePocket,
 }: SidebarProps) {
   const { signOut, user } = useAuth();
   const navigate = useNavigate();
-  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  // Close menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setActiveMenuId(null);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   // Admin Check
   const adminEmails = import.meta.env.VITE_ADMIN_EMAILS?.split(',') || [];
@@ -211,56 +193,6 @@ export function Sidebar({
               )}>
                 {pocket.item_count || 0}
               </span>
-
-              {/* More Menu Trigger (Only for non-default pockets) */}
-              {!pocket.is_default && (
-                <div className="relative ml-1">
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveMenuId(activeMenuId === pocket.id ? null : pocket.id);
-                    }}
-                    className={cn(
-                      "p-1 rounded-md hover:bg-gray-200 transition-colors",
-                      activeMenuId === pocket.id ? "bg-gray-200 text-gray-700" : "text-gray-400 opacity-0 group-hover:opacity-100"
-                    )}
-                  >
-                    <MoreVertical className="w-4 h-4" />
-                  </div>
-
-                  {/* Dropdown Menu */}
-                  {activeMenuId === pocket.id && (
-                    <div
-                      ref={menuRef}
-                      className="absolute right-0 top-8 w-32 bg-white rounded-lg shadow-xl border border-gray-100 z-50 py-1 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <button
-                        onClick={() => {
-                          onEditPocket?.(pocket.id);
-                          setActiveMenuId(null);
-                        }}
-                        className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 hover:text-gray-900 w-full text-left"
-                      >
-                        <Edit2 className="w-3 h-3" />
-                        수정
-                      </button>
-                      <button
-                        onClick={() => {
-                          onDeletePocket?.(pocket.id, pocket.name);
-                          setActiveMenuId(null);
-                        }}
-                        className="flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 hover:text-red-700 w-full text-left"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                        삭제
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
             </button>
           ))}
         </div>
