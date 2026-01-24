@@ -26,7 +26,7 @@
     - **Injection:** Apply tags dynamically via a utility function (`utils/affiliate.ts`) ONLY when the user clicks "Visit Store". (Prepare structure for future ID insertion).
 
 ## 4. Image Optimization Strategy (Mobile Ready)
-- **Process:** Extension crops image to 1:1/4:3 ratio -> Converts to WebP (Quality 80%, Max 600px) -> Uploads to Supabase Storage (`thumbnails` bucket).
+- **Process:** Extension crops image to 1:1/4:3 ratio -> Converts to WebP (Quality 80%, Max 200px) -> Uploads to Supabase Storage (`thumbnails` bucket).
 - **Data:** Save the Supabase Storage URL in DB, NOT the external shopping mall URL.
 - **UX:** Generate/Save `BlurHash` for instant placeholder loading.
 

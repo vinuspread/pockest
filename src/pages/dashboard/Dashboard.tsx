@@ -437,7 +437,7 @@ export default function Dashboard() {
 
         <div className="flex flex-1 overflow-hidden">
           <main className="flex-1 overflow-y-auto p-6">
-            <div className="max-w-6xl mx-auto">
+            <div className="max-w-[1440px] mx-auto">
               <div className="mb-6 flex items-center justify-between">
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">
