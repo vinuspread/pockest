@@ -1,16 +1,10 @@
 {
   "manifest_version": 3,
-  "name": "Pockest",
-  "version": "1.0.0",
-  "description": "쇼핑 위시리스트 & 가격 비교",
-  "icons": {
-    "16": "assets/icons/icon-16.png",
-    "32": "assets/icons/icon-32.png",
-    "48": "assets/icons/icon-48.png",
-    "128": "assets/icons/icon-128.png"
-  },
+  "name": "__MSG_extName__",
+  "description": "__MSG_extDescription__",
+  "default_locale": "en",
   "action": {
-    "default_title": "Pockest Open SidePanel"
+    "default_title": "__MSG_actionTitle__"
   },
   "side_panel": {
     "default_path": "src/pages/popup/index.html"
@@ -102,6 +96,8 @@
     "activeTab"
   ],
   "host_permissions": [
+    "http://localhost:*/*",
+    "ws://localhost:*/*",
     "*://*.amazon.com/*",
     "*://*.amazon.co.jp/*",
     "*://*.amazon.co.uk/*",

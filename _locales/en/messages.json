@@ -1,0 +1,14 @@
+{
+    "extName": {
+        "message": "Pockest",
+        "description": "Extension name"
+    },
+    "extDescription": {
+        "message": "Shopping Wishlist & Price Comparison - Save products from any shopping site",
+        "description": "Extension description shown in chrome://extensions"
+    },
+    "actionTitle": {
+        "message": "Open Pockest",
+        "description": "Tooltip shown when hovering over extension icon"
+    }
+}

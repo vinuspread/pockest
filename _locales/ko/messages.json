@@ -1,0 +1,14 @@
+{
+    "extName": {
+        "message": "Pockest",
+        "description": "확장 프로그램 이름"
+    },
+    "extDescription": {
+        "message": "쇼핑 위시리스트 & 가격 비교 - 모든 쇼핑몰에서 상품 저장",
+        "description": "chrome://extensions에 표시되는 설명"
+    },
+    "actionTitle": {
+        "message": "Pockest 열기",
+        "description": "확장 프로그램 아이콘에 마우스를 올렸을 때 표시되는 툴팁"
+    }
+}
