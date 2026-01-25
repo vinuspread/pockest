@@ -207,7 +207,7 @@ export default function Dashboard() {
       loadViewData();
     };
     loadPockets();
-  }, [currentView, pocketId, isAuthenticated, pockets.length, selectPocket]);
+  }, [currentView, pocketId, isAuthenticated, selectPocket]);
 
   // 🔥 [New] Window focus 시 자동 새로고침 (사이드바에서 추가한 상품 실시간 반영)
   useEffect(() => {
@@ -233,7 +233,7 @@ export default function Dashboard() {
 
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, [isAuthenticated, pocketId, currentView, pockets.length, user]);
+  }, [isAuthenticated, pocketId, currentView, user]);
 
   // 주요메뉴 카운트 계산
   const [allItemsCount, setAllItemsCount] = useState(0);
