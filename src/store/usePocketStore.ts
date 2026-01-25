@@ -17,6 +17,7 @@ interface PocketState {
   togglePublicPocket: (id: string, isPublic: boolean) => Promise<void>;
   deletePocket: (id: string) => Promise<boolean>;
   selectPocket: (id: string | null) => void;
+  decrementPocketCount: (pocketId: string) => void;
   initializeSubscription: () => void;
   unsubscribe: () => void;
   subscription?: any;
@@ -161,6 +162,16 @@ export const usePocketStore = create<PocketState>((set, get) => ({
   },
 
   selectPocket: (id) => set({ selectedPocketId: id }),
+
+  decrementPocketCount: (pocketId) => {
+    set((state) => ({
+      pockets: state.pockets.map((pocket) =>
+        pocket.id === pocketId
+          ? { ...pocket, item_count: Math.max(0, pocket.item_count - 1) }
+          : pocket
+      ),
+    }));
+  },
 
   // Realtime Subscription
   initializeSubscription: () => {

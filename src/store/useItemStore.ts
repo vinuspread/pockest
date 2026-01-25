@@ -314,9 +314,9 @@ export const useItemStore = create<ItemState>((set, get) => ({
                 items: state.items.filter((item) => item.id !== id),
             }));
 
-            // 3. 포켓 카운트 동기화
+            // 3. 포켓 카운트 감소 (리프레시 없이)
             if (targetItem.pocket_id) {
-                usePocketStore.getState().fetchPockets();
+                usePocketStore.getState().decrementPocketCount(targetItem.pocket_id);
             }
         } catch (error: any) {
             console.error('[ItemStore] ❌ Failed to move to trash:', error);
