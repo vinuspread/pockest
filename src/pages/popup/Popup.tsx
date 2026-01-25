@@ -308,7 +308,8 @@ export default function Popup() {
 
         // 모든 재시도 실패 - 사이트 타입 분석
         try {
-          const siteType = await detectSiteType(tab.url!, tab.id);
+          const currentUrl = tab.url || '';
+          const siteType = await detectSiteType(currentUrl, tab.id);
           const { user } = useAuthStore.getState();
           
           if (siteType === 'unregistered') {

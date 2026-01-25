@@ -33,6 +33,7 @@ const REGISTERED_DOMAINS = [
   'yodobashi.com',
   'smartstore.naver.com',
   'shopping.naver.com',
+  'brand.naver.com',
   'coupang.com',
   'gmarket.co.kr',
   '11st.co.kr',
@@ -97,6 +98,7 @@ export function isRegisteredShoppingMall(url: string): boolean {
  * 쇼핑몰 가능성이 있는 사이트인지 URL 기반 체크
  */
 export function isLikelyShoppingMall(url: string): boolean {
+  if (!url) return false;
   const lowerUrl = url.toLowerCase();
   
   // 쇼핑몰 관련 키워드
@@ -188,6 +190,11 @@ export type SiteType =
   | 'general';        // 일반 사이트
 
 export async function detectSiteType(url: string, tabId?: number): Promise<SiteType> {
+  // URL 유효성 체크
+  if (!url || url.startsWith('chrome://') || url.startsWith('chrome-extension://')) {
+    return 'general';
+  }
+  
   // 1. 등록된 쇼핑몰 체크
   if (isRegisteredShoppingMall(url)) {
     return 'registered';
