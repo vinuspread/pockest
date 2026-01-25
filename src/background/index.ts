@@ -80,6 +80,13 @@ chrome.action.onClicked.addListener(async (tab) => {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.type) {
+    case 'FETCH_IMAGE':
+      // Content Script에서 CORS 우회를 위해 Background에서 fetch
+      handleFetchImage(message.payload)
+        .then((result) => sendResponse({ success: true, data: result }))
+        .catch((error) => sendResponse({ success: false, error: error.message }));
+      return true; // 비동기 응답
+
     case 'SAVE_ITEM':
       handleSaveItem(message.payload)
         .then((result) => sendResponse({ success: true, data: result }))
@@ -110,6 +117,36 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // ============================================================
 // 헬퍼 함수
 // ============================================================
+
+// 이미지 fetch 핸들러 (CORS 우회)
+async function handleFetchImage(imageUrl: string) {
+  logger.log('[Background] Fetching image:', imageUrl);
+  
+  try {
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      throw new Error(`Fetch failed: ${response.status}`);
+    }
+    
+    const blob = await response.blob();
+    logger.log('[Background] Image fetched, blob size:', blob.size);
+    
+    // Blob을 ArrayBuffer로 변환하여 전송
+    const arrayBuffer = await blob.arrayBuffer();
+    const base64 = btoa(
+      new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
+    );
+    
+    return {
+      base64,
+      type: blob.type,
+      size: blob.size,
+    };
+  } catch (error) {
+    logger.error('[Background] Image fetch failed:', error);
+    throw error;
+  }
+}
 
 // 상품 저장 핸들러
 async function handleSaveItem(item: unknown) {

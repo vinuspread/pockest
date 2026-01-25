@@ -11,25 +11,9 @@ import { encode } from 'blurhash';
 // 타입 정의
 // ============================================================
 
-interface ProcessedImageData {
-  blob: Blob;
-  blurhash: string;
-  width: number;
-  height: number;
-}
-
-interface EnhancedProductData extends ProductData {
-  processedImage?: {
-    dataUrl: string;
-    blurhash: string;
-    width: number;
-    height: number;
-  };
-}
-
 interface ScrapeResponse {
   success: boolean;
-  data: EnhancedProductData | null;
+  data: ProductData | null;
   error?: string;
 }
 
@@ -75,100 +59,7 @@ chrome.runtime.onMessage.addListener(
 );
 
 /**
- * 이미지 처리 (리사이징, WebP 변환, BlurHash)
- */
-async function processImageInContent(imageUrl: string): Promise<ProcessedImageData | null> {
-  const MAX_WIDTH = 200;
-  
-  try {
-    logger.log('[Content Script] Starting image processing:', imageUrl);
-    
-    // 1. host_permissions로 이미지 fetch (CSP 영향 없음)
-    const response = await fetch(imageUrl);
-    if (!response.ok) {
-      logger.warn('[Content Script] Fetch failed:', response.status);
-      throw new Error(`Fetch failed: ${response.status}`);
-    }
-    
-    const blob = await response.blob();
-    logger.log('[Content Script] Image fetched, blob size:', blob.size);
-    
-    const blobUrl = URL.createObjectURL(blob);
-    
-    // 2. Image 로드
-    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const image = new Image();
-      image.onload = () => {
-        logger.log('[Content Script] Image loaded:', image.width, 'x', image.height);
-        resolve(image);
-      };
-      image.onerror = () => {
-        logger.warn('[Content Script] Image load failed');
-        reject(new Error('Image load failed'));
-      };
-      image.src = blobUrl;
-    });
-    
-    URL.revokeObjectURL(blobUrl);
-    
-    // 3. 리사이징 계산
-    let width = img.width;
-    let height = img.height;
-    
-    if (width > MAX_WIDTH) {
-      height = Math.round((height * MAX_WIDTH) / width);
-      width = MAX_WIDTH;
-    }
-    
-    logger.log('[Content Script] Resizing to:', width, 'x', height);
-    
-    // 4. Canvas로 리사이징
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
-    
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('Canvas context failed');
-    
-    ctx.drawImage(img, 0, 0, width, height);
-    
-    // 5. BlurHash 생성
-    let blurhash = '';
-    try {
-      const imageData = ctx.getImageData(0, 0, width, height);
-      blurhash = encode(imageData.data, width, height, 4, 3);
-      logger.log('[Content Script] BlurHash generated:', blurhash.substring(0, 20) + '...');
-    } catch (blurError) {
-      logger.warn('[Content Script] BlurHash generation failed, skipping:', blurError);
-      // BlurHash 실패해도 계속 진행
-    }
-    
-    // 6. WebP Blob 변환
-    const webpBlob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            logger.log('[Content Script] WebP blob created, size:', blob.size);
-            resolve(blob);
-          } else {
-            reject(new Error('Canvas to Blob failed'));
-          }
-        },
-        'image/webp',
-        0.75
-      );
-    });
-    
-    logger.log('[Content Script] Image processing successful');
-    return { blob: webpBlob, blurhash, width, height };
-  } catch (error) {
-    logger.warn('[Content Script] Image processing failed:', error);
-    return null;
-  }
-}
-
-/**
- * 상품 정보 스크래핑 핸들러
+ * 이미지 처리 (리사이징, WebP 변환, BlurHash) - Content Script에서는 URL만 전달
  */
 async function handleScrapeProduct(
   sendResponse: (response: ScrapeResponse) => void
@@ -187,45 +78,16 @@ async function handleScrapeProduct(
       return;
     }
 
-    // 이미지가 있으면 Content Script에서 처리
-    let enhancedData: EnhancedProductData = productData;
+    // 이미지 처리는 Popup에서 수행 (Content Script에서는 URL만 전달)
+    logger.log('[Content Script] Product data collected:', {
+      title: productData.title,
+      imageUrl: productData.imageUrl,
+      imageCount: productData.imageUrls?.length || 0,
+    });
     
-    if (productData.imageUrl) {
-      logger.log('[Content Script] Found image URL, attempting to process...');
-      const processed = await processImageInContent(productData.imageUrl);
-      
-      if (processed) {
-        // Blob을 Data URL로 변환하여 전송
-        const reader = new FileReader();
-        const dataUrl = await new Promise<string>((resolve) => {
-          reader.onloadend = () => {
-            logger.log('[Content Script] Data URL created, length:', (reader.result as string).length);
-            resolve(reader.result as string);
-          };
-          reader.readAsDataURL(processed.blob);
-        });
-        
-        enhancedData = {
-          ...productData,
-          processedImage: {
-            dataUrl,
-            blurhash: processed.blurhash,
-            width: processed.width,
-            height: processed.height,
-          },
-        };
-        
-        logger.log('[Content Script] Image data attached to product data');
-      } else {
-        logger.warn('[Content Script] Image processing returned null, sending without processed image');
-      }
-    } else {
-      logger.log('[Content Script] No image URL found in product data');
-    }
-
     sendResponse({
       success: true,
-      data: enhancedData,
+      data: productData,
     });
   } catch (error) {
     logger.error('Scrape error:', error);

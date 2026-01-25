@@ -138,6 +138,7 @@
     "*://*.smartstore.naver.com/*",
     "*://*.shopping.naver.com/*",
     "*://*.coupang.com/*",
+    "*://*.coupangcdn.com/*",
     "*://*.gmarket.co.kr/*",
     "*://*.11st.co.kr/*",
     "*://*.auction.co.kr/*",

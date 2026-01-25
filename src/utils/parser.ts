@@ -25,12 +25,6 @@ export interface ProductData {
   imageUrls: string[];        // 이미지 후보군 (배열)
   mallName: string;
   url: string;
-  processedImage?: {          // Content Script에서 처리된 이미지 데이터
-    dataUrl: string;
-    blurhash: string;
-    width: number;
-    height: number;
-  };
 }
 
 interface JsonLdProduct {

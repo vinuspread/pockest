@@ -10,7 +10,7 @@ import { usePocketStore } from '@/store/usePocketStore';
 import { useItemStore } from '@/store/useItemStore';
 // import { supabase } from '@/services/supabase/client';
 import { Toast, useToast } from '@/components/ui';
-import { cn, formatPrice, openDashboard, dataUrlToBlob } from '@/utils';
+import { cn, formatPrice, openDashboard } from '@/utils';
 import type { ProductData } from '@/utils/parser';
 import { processImage, uploadThumbnail } from '@/utils/imageOptimizer';
 import { AuthForms } from '@/components/auth/AuthForms';
@@ -549,53 +549,33 @@ export default function Popup() {
     setStatus('saving');
 
     try {
-      let finalImageUrl: string | null = currentImageUrl;
+      let finalImageUrl: string | null = null;
       let finalBlurhash: string | null = null;
 
-      // 이미지 처리 및 업로드
-      if (productData.processedImage) {
-        // Content Script에서 이미 처리된 이미지 사용
-        try {
-          logger.log('Using pre-processed image from Content Script');
-          const blob = dataUrlToBlob(productData.processedImage.dataUrl);
-          finalImageUrl = await uploadThumbnail(user.id, blob);
-          finalBlurhash = productData.processedImage.blurhash;
-          logger.log('Pre-processed image uploaded:', finalImageUrl);
-        } catch (uploadError) {
-          logger.warn('Pre-processed image upload failed:', uploadError);
-          finalImageUrl = null;
-          finalBlurhash = null;
-        }
-      } else if (currentImageUrl) {
-        // 구버전 호환: Popup에서 처리 (Fallback)
-        try {
-          logger.log('Processing image in Popup (fallback)...', currentImageUrl);
-          const { blob, blurhash } = await processImage(currentImageUrl);
+      // 이미지 URL 결정: UI에서 선택된 이미지 또는 대표 이미지
+      const targetImageUrl = (productData.imageUrls && productData.imageUrls[selectedImageIndex]) 
+        || productData.imageUrl;
 
-          logger.log('Uploading thumbnail...');
+      logger.log('[Popup] Save started');
+      logger.log('[Popup] Target image URL:', targetImageUrl);
+
+      // 이미지 처리 (Popup은 Extension Page이므로 host_permissions 완전 작동)
+      if (targetImageUrl) {
+        try {
+          logger.log('[Popup] Processing image...');
+          const { blob, blurhash } = await processImage(targetImageUrl);
+
+          logger.log('[Popup] Uploading thumbnail...');
           finalImageUrl = await uploadThumbnail(user.id, blob);
           finalBlurhash = blurhash;
 
-          logger.log('Image processed:', finalImageUrl);
+          logger.log('[Popup] Image processed successfully:', finalImageUrl);
         } catch (imgError) {
-          logger.warn('Image processing failed, trying direct upload:', imgError);
-          // Fallback: 원본 이미지를 직접 fetch하여 업로드 시도
-          try {
-            const response = await fetch(currentImageUrl);
-            if (response.ok) {
-              const blob = await response.blob();
-              finalImageUrl = await uploadThumbnail(user.id, blob);
-              logger.log('Direct upload successful:', finalImageUrl);
-            } else {
-              throw new Error(`Fetch failed: ${response.status}`);
-            }
-          } catch (fallbackError) {
-            logger.warn('Direct upload also failed:', fallbackError);
-            // 최종 실패: 이미지 없이 저장
-            finalImageUrl = null;
-            finalBlurhash = null;
-          }
+          logger.warn('[Popup] Image processing failed:', imgError);
+          // 이미지 실패해도 상품은 저장 (no image)
         }
+      } else {
+        logger.warn('[Popup] No image URL found, saving without image');
       }
 
       const result = await addItem({
