@@ -296,28 +296,40 @@ export const useItemStore = create<ItemState>((set, get) => ({
         const targetItem = get().items.find((item) => item.id === id);
         if (!targetItem) return;
 
+        console.log('[ItemStore] 🗑️ Starting delete for item:', id);
+        console.log('[ItemStore] Current items count:', get().items.length);
+
         try {
             // 1. 먼저 서버에서 삭제
-            const { error } = await supabase
+            console.log('[ItemStore] Updating server...');
+            const { data, error } = await supabase
                 .from('items')
                 .update({
                     deleted_at: new Date().toISOString(),
                     is_pinned: false
                 })
                 .eq('id', id)
-                .eq('user_id', user.id);
+                .eq('user_id', user.id)
+                .select();
+
+            console.log('[ItemStore] Server response:', { data, error });
 
             if (error) throw error;
 
             // 2. 성공하면 UI에서 제거
+            console.log('[ItemStore] Removing from UI...');
             set((state) => ({
                 items: state.items.filter((item) => item.id !== id),
             }));
+            console.log('[ItemStore] Items after removal:', get().items.length);
 
             // 3. 포켓 카운트 감소 (리프레시 없이)
             if (targetItem.pocket_id) {
+                console.log('[ItemStore] Decrementing pocket count for:', targetItem.pocket_id);
                 usePocketStore.getState().decrementPocketCount(targetItem.pocket_id);
             }
+
+            console.log('[ItemStore] ✅ Delete completed successfully');
         } catch (error: any) {
             console.error('[ItemStore] ❌ Failed to move to trash:', error);
             set({ itemsError: '휴지통 이동 실패' });

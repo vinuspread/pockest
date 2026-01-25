@@ -207,7 +207,7 @@ export default function Dashboard() {
       loadViewData();
     };
     loadPockets();
-  }, [currentView, pocketId, isAuthenticated, selectPocket]);
+  }, [currentView, pocketId, isAuthenticated]);
 
   // 🔥 [New] Window focus 시 자동 새로고침 (사이드바에서 추가한 상품 실시간 반영)
   useEffect(() => {
