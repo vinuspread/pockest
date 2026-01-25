@@ -5,7 +5,6 @@
 
 import { parseProductFromPage, parseProductWithRetry, isProductPage, type ProductData } from '@/utils/parser';
 import { logger } from '@/utils/logger';
-import { encode } from 'blurhash';
 
 // ============================================================
 // 타입 정의

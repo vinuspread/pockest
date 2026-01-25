@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pockest Image Processing Test</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      padding: 40px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 30px;
+      font-size: 32px;
+    }
+    .test-section {
+      margin: 30px 0;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border-left: 4px solid #667eea;
+    }
+    .test-section h2 {
+      color: #667eea;
+      margin-bottom: 15px;
+      font-size: 20px;
+    }
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 600;
+      transition: all 0.3s;
+      margin: 5px;
+    }
+    button:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .result {
+      margin-top: 15px;
+      padding: 15px;
+      border-radius: 6px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .result.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .result.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .result.info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 14px;
+      margin-bottom: 15px;
+      font-family: 'Courier New', monospace;
+    }
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    canvas {
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      margin-top: 15px;
+      max-width: 100%;
+    }
+    .progress {
+      margin: 15px 0;
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      background: #667eea;
+      width: 0%;
+      transition: width 0.3s;
+    }
+    .status {
+      font-weight: 600;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔬 Pockest Image Processing Test</h1>
+    
+    <div class="test-section">
+      <h2>이미지 URL 입력</h2>
+      <input type="text" id="imageUrl" 
+             value="https://thumbnail.coupangcdn.com/thumbnails/remote/492x492ex/image/vendor_inventory/c247/4b0be19e1a82e92f1f88430f2059335a51se5cf98536fe990896fdb61c296.jpg"
+             placeholder="테스트할 이미지 URL을 입력하세요">
+      
+      <button onclick="runAllTests()">🚀 전체 테스트 실행</button>
+      <button onclick="clearResults()">🗑️ 결과 지우기</button>
+    </div>
+
+    <div class="test-section">
+      <h2>개별 테스트</h2>
+      <button onclick="test1()">1️⃣ Fetch 테스트</button>
+      <button onclick="test2()">2️⃣ Blob 변환 테스트</button>
+      <button onclick="test3()">3️⃣ Image 로드 테스트</button>
+      <button onclick="test4()">4️⃣ Canvas 처리 테스트</button>
+      <button onclick="test5()">5️⃣ WebP 변환 테스트</button>
+    </div>
+
+    <div id="results"></div>
+    <canvas id="canvas" style="display:none;"></canvas>
+  </div>
+
+  <script>
+    let globalBlob = null;
+    let globalImage = null;
+
+    function log(message, type = 'info') {
+      const div = document.createElement('div');
+      div.className = `result ${type}`;
+      div.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      document.getElementById('results').appendChild(div);
+      console.log(`[${type.toUpperCase()}]`, message);
+    }
+
+    function clearResults() {
+      document.getElementById('results').innerHTML = '';
+      globalBlob = null;
+      globalImage = null;
+    }
+
+    async function test1() {
+      const url = document.getElementById('imageUrl').value;
+      log('=== TEST 1: Fetch 테스트 시작 ===', 'info');
+      log(`URL: ${url}`, 'info');
+      
+      try {
+        const response = await fetch(url);
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status} ${response.statusText}`);
+        }
+        
+        log(`✅ Fetch 성공: ${response.status} ${response.statusText}`, 'success');
+        log(`Content-Type: ${response.headers.get('content-type')}`, 'success');
+        
+        return response;
+      } catch (error) {
+        log(`❌ Fetch 실패: ${error.message}`, 'error');
+        throw error;
+      }
+    }
+
+    async function test2() {
+      log('=== TEST 2: Blob 변환 테스트 시작 ===', 'info');
+      
+      try {
+        const response = await test1();
+        const blob = await response.blob();
+        
+        globalBlob = blob;
+        
+        log(`✅ Blob 생성 성공`, 'success');
+        log(`크기: ${(blob.size / 1024).toFixed(2)} KB`, 'success');
+        log(`타입: ${blob.type}`, 'success');
+        
+        return blob;
+      } catch (error) {
+        log(`❌ Blob 변환 실패: ${error.message}`, 'error');
+        throw error;
+      }
+    }
+
+    async function test3() {
+      log('=== TEST 3: Image 로드 테스트 시작 ===', 'info');
+      
+      try {
+        if (!globalBlob) {
+          await test2();
+        }
+        
+        const blobUrl = URL.createObjectURL(globalBlob);
+        
+        const img = await new Promise((resolve, reject) => {
+          const image = new Image();
+          
+          image.onload = () => {
+            URL.revokeObjectURL(blobUrl);
+            resolve(image);
+          };
+          
+          image.onerror = () => {
+            URL.revokeObjectURL(blobUrl);
+            reject(new Error('Image load failed'));
+          };
+          
+          image.src = blobUrl;
+        });
+        
+        globalImage = img;
+        
+        log(`✅ Image 로드 성공`, 'success');
+        log(`원본 크기: ${img.width} x ${img.height}`, 'success');
+        
+        return img;
+      } catch (error) {
+        log(`❌ Image 로드 실패: ${error.message}`, 'error');
+        throw error;
+      }
+    }
+
+    async function test4() {
+      log('=== TEST 4: Canvas 처리 테스트 시작 ===', 'info');
+      
+      try {
+        if (!globalImage) {
+          await test3();
+        }
+        
+        const canvas = document.getElementById('canvas');
+        canvas.style.display = 'block';
+        
+        const MAX_WIDTH = 200;
+        let width = globalImage.width;
+        let height = globalImage.height;
+        
+        if (width > MAX_WIDTH) {
+          height = Math.round((height * MAX_WIDTH) / width);
+          width = MAX_WIDTH;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          throw new Error('Canvas context 생성 실패');
+        }
+        
+        ctx.drawImage(globalImage, 0, 0, width, height);
+        
+        log(`✅ Canvas 그리기 성공`, 'success');
+        log(`리사이즈: ${width} x ${height}`, 'success');
+        
+        return canvas;
+      } catch (error) {
+        log(`❌ Canvas 처리 실패: ${error.message}`, 'error');
+        throw error;
+      }
+    }
+
+    async function test5() {
+      log('=== TEST 5: WebP 변환 테스트 시작 ===', 'info');
+      
+      try {
+        const canvas = await test4();
+        
+        const webpBlob = await new Promise((resolve, reject) => {
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                resolve(blob);
+              } else {
+                reject(new Error('Canvas to Blob 변환 실패'));
+              }
+            },
+            'image/webp',
+            0.75
+          );
+        });
+        
+        log(`✅ WebP 변환 성공`, 'success');
+        log(`최종 크기: ${(webpBlob.size / 1024).toFixed(2)} KB`, 'success');
+        log(`압축률: ${((1 - webpBlob.size / globalBlob.size) * 100).toFixed(1)}%`, 'success');
+        
+        return webpBlob;
+      } catch (error) {
+        log(`❌ WebP 변환 실패: ${error.message}`, 'error');
+        throw error;
+      }
+    }
+
+    async function runAllTests() {
+      clearResults();
+      log('🚀 전체 테스트 시작...', 'info');
+      
+      try {
+        await test1();
+        await test2();
+        await test3();
+        await test4();
+        await test5();
+        
+        log('', 'info');
+        log('🎉 모든 테스트 통과! 이미지 처리가 정상 작동합니다.', 'success');
+      } catch (error) {
+        log('', 'info');
+        log('⛔ 테스트 실패! 위의 에러를 확인하세요.', 'error');
+      }
+    }
+
+    // 페이지 로드 시 자동 실행
+    window.addEventListener('load', () => {
+      log('테스트 페이지 로드 완료. "전체 테스트 실행" 버튼을 클릭하세요.', 'info');
+    });
+  </script>
+</body>
+</html>

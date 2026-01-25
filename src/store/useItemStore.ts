@@ -293,23 +293,11 @@ export const useItemStore = create<ItemState>((set, get) => ({
         const { user } = useAuthStore.getState();
         if (!user) return;
 
-        // Optimistic Update
         const targetItem = get().items.find((item) => item.id === id);
         if (!targetItem) return;
 
-        set((state) => ({
-            items: state.items.filter((item) => item.id !== id),
-        }));
-
-        // Sync Pocket Count
-        // Since we don't have direct access to setPockets, we trigger a fetch
-        // Or we could export an action in usePocketStore to decrement count. 
-        // For now, re-fetching is safest to avoid sync issues.
-        if (targetItem.pocket_id) {
-            usePocketStore.getState().fetchPockets();
-        }
-
         try {
+            // 1. 먼저 서버에서 삭제
             const { error } = await supabase
                 .from('items')
                 .update({
@@ -320,10 +308,20 @@ export const useItemStore = create<ItemState>((set, get) => ({
                 .eq('user_id', user.id);
 
             if (error) throw error;
+
+            // 2. 성공하면 UI에서 제거
+            set((state) => ({
+                items: state.items.filter((item) => item.id !== id),
+            }));
+
+            // 3. 포켓 카운트 동기화
+            if (targetItem.pocket_id) {
+                usePocketStore.getState().fetchPockets();
+            }
         } catch (error: any) {
             console.error('[ItemStore] ❌ Failed to move to trash:', error);
             set({ itemsError: '휴지통 이동 실패' });
-            // TODO: Rollback state if needed
+            throw error; // 에러를 상위로 전달하여 토스트 표시
         }
     },
 

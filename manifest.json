@@ -142,6 +142,7 @@
     "*://*.pstatic.net/*",
     "*://*.coupang.com/*",
     "*://*.coupangcdn.com/*",
+    "*://*.ohousecdn.com/*",
     "*://*.alicdn.com/*",
     "*://*.cloudfront.net/*",
     "*://*.media-amazon.com/*",

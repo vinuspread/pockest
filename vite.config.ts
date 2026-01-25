@@ -21,6 +21,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         dashboard: path.resolve(__dirname, 'index.html'),
+        'test-full-flow': path.resolve(__dirname, 'test-full-flow.html'),
       },
     },
     sourcemap: false, // Production에서 source map 비활성화

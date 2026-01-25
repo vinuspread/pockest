@@ -27,8 +27,14 @@ export function ItemGrid({ items, currentView, readonly = false }: ItemGridProps
                         if (confirm('⚠️ 이 상품을 영구 삭제하시겠습니까?\n\n삭제된 데이터는 복구할 수 없습니다.')) permanentDelete(id);
                     }}
                     onTogglePin={togglePin}
-                    onMoveToTrash={(id: string) => {
-                        if (confirm('이 상품을 휴지통으로 이동하시겠습니까?')) trash(id);
+                    onMoveToTrash={async (id: string) => {
+                        if (confirm('이 상품을 휴지통으로 이동하시겠습니까?')) {
+                            try {
+                                await trash(id);
+                            } catch (error) {
+                                alert('삭제에 실패했습니다. 다시 시도해주세요.');
+                            }
+                        }
                     }}
                     readOnly={readonly} // Pass readOnly
                 />

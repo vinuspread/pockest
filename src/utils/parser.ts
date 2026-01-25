@@ -40,9 +40,10 @@ interface JsonLdProduct {
   }>;
 }
 
-// 광고/배너 이미지 필터링 키워드
+// 광고/배너 이미지 필터링 키워드 (정교한 패턴으로 변경)
 const EXCLUDED_IMAGE_KEYWORDS = [
-  'ad', 'banner', 'advertisement', 'promotion', 'promo',
+  '/ad/', '/ads/', '_ad_', '_ads_', '-ad-', '-ads-', // 경로/파일명의 광고
+  'banner', 'advertisement', 'promotion', 'promo',
   'logo', 'icon', 'btn', 'button', 'arrow', 'cart', 'search',
   'spinner', 'loading', 'placeholder', 'blank', 'empty',
   'social', 'facebook', 'twitter', 'instagram', 'kakao',
@@ -74,6 +75,8 @@ const MALL_IMAGE_SELECTORS: Record<string, string[]> = {
   '29cm.co.kr': ['.detail-image img', '.prd_img img'],
   // W컨셉
   'wconcept.co.kr': ['.prd_img img', '.thumb img'],
+  // 오늘의집
+  'ohou.se': ['.e4wdayt2', '[class*="exk90o"] img', 'img[alt*="상품 이미지"]', '.css-1ljr6mm', '.css-2n1s6i'],
   // 아마존 (다양한 버전 대응)
   'amazon': [
     '#landingImage',
@@ -162,19 +165,24 @@ function parseJsonLd(doc: Document): JsonLdProduct | null {
  * 이미지가 유효한지 검증 (광고/아이콘 제외)
  */
 function isValidProductImage(src: string): boolean {
-  if (!src || src.startsWith('data:')) return false;
+  if (!src || src.startsWith('data:')) {
+    console.log('[Parser] Invalid image (empty or data URI):', src);
+    return false;
+  }
 
   const srcLower = src.toLowerCase();
 
   // 제외 키워드 체크
   for (const keyword of EXCLUDED_IMAGE_KEYWORDS) {
     if (srcLower.includes(keyword)) {
+      console.log('[Parser] Invalid image (excluded keyword:', keyword + '):', src);
       return false;
     }
   }
 
   // 확장자 체크 (gif 제외 - 대부분 아이콘)
   if (srcLower.endsWith('.gif') || srcLower.endsWith('.svg')) {
+    console.log('[Parser] Invalid image (GIF/SVG):', src);
     return false;
   }
 
@@ -359,6 +367,8 @@ export function getProductImages(doc: Document): string[] {
   const imageSet = new Set<string>();
   const hostname = doc.location?.hostname || '';
 
+  console.log('[Parser] Starting image extraction for:', hostname);
+
   // 1순위: Open Graph 이미지
   const ogImages = [
     getMetaContent(doc, ['meta[property="og:image"]']),
@@ -366,8 +376,11 @@ export function getProductImages(doc: Document): string[] {
     getMetaContent(doc, ['meta[property="og:image:secure_url"]']),
   ].filter(Boolean);
 
+  console.log('[Parser] OG Images found:', ogImages);
+
   ogImages.forEach((img) => {
     const resolved = resolveUrl(img, doc);
+    console.log('[Parser] Validating OG image:', resolved, '→', isValidProductImage(resolved));
     if (isValidProductImage(resolved)) {
       imageSet.add(resolved);
     }
@@ -395,13 +408,18 @@ export function getProductImages(doc: Document): string[] {
 
   // 4순위: 쇼핑몰별 상품 이미지
   const mallImages = getMallSpecificImages(doc, hostname);
+  console.log('[Parser] Mall-specific images found:', mallImages.length);
   mallImages.forEach((img) => imageSet.add(img));
 
   // 5순위: 본문 내 큰 이미지들 (300px 이상)
   const largeImages = findLargeImages(doc);
+  console.log('[Parser] Large images found:', largeImages.length);
   largeImages.forEach((img) => imageSet.add(img));
 
-  return Array.from(imageSet).slice(0, 10); // 최대 10개
+  const finalImages = Array.from(imageSet).slice(0, 10);
+  console.log('[Parser] Final image URLs:', finalImages);
+
+  return finalImages; // 최대 10개
 }
 
 /**

@@ -284,7 +284,13 @@ export default function Popup() {
             });
 
             if (response) {
+              logger.log('[Popup] Scrape response received:', response.success);
               if (response.success && response.data) {
+                logger.log('[Popup] Setting product data:', {
+                  title: response.data.title,
+                  imageUrl: response.data.imageUrl,
+                  imageCount: response.data.imageUrls?.length
+                });
                 setProductData(response.data);
                 setEditedTitle(response.data.title);
                 setScrapeError('');
@@ -535,13 +541,20 @@ export default function Popup() {
   // 포켓에 저장 핸들러
   // ============================================================
   const handleSaveToPocket = async (pocketId: string) => {
+    logger.log('[Popup] handleSaveToPocket called, pocketId:', pocketId);
+    logger.log('[Popup] productData exists:', !!productData);
+    
     if (!productData) {
+      logger.warn('[Popup] No product data, showing warning');
       showToast(t('toast.fetch_product_first'), 'warning');
       return;
     }
 
     const { user } = useAuthStore.getState();
+    logger.log('[Popup] User exists:', !!user);
+    
     if (!user) {
+      logger.warn('[Popup] No user, showing warning');
       showToast(t('toast.login_required'), 'warning');
       return;
     }
