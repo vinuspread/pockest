@@ -167,7 +167,7 @@ export const usePocketStore = create<PocketState>((set, get) => ({
     set((state) => ({
       pockets: state.pockets.map((pocket) =>
         pocket.id === pocketId
-          ? { ...pocket, item_count: Math.max(0, pocket.item_count - 1) }
+          ? { ...pocket, item_count: Math.max(0, (pocket.item_count || 0) - 1) }
           : pocket
       ),
     }));
